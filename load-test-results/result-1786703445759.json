@@ -1,0 +1,20 @@
+{
+  "timestamp": "2026-08-14T10:30:45.690Z",
+  "configuration": {
+    "baseUrl": "http://localhost:8080",
+    "total": 100000,
+    "concurrency": 1000
+  },
+  "results": {
+    "completed": 100000,
+    "failed": 0,
+    "durationSeconds": 50.915,
+    "logsPerSecond": 1964.05
+  },
+  "latencyMs": {
+    "p50": 489.33,
+    "p95": 550.29,
+    "p99": 777.56,
+    "max": 3070.5
+  }
+}
