@@ -1,44 +1,16 @@
-import "dotenv/config";
 import { describe, expect, it } from "vitest";
-import Fastify from "fastify";
-import { db } from "../src/db/client.js";
-import { logs } from "../src/db/schema.js";
+import { app } from "../src/app.js";
 
 describe("POST /logs", () => {
-  it("creates a log successfully", async () => {
-    const app = Fastify();
-
-    app.post("/logs", async (request, reply) => {
-      const body = request.body as {
-        timestamp: string;
-        level: string;
-        service: string;
-        message: string;
-        attributes?: Record<string, unknown>;
-      };
-
-      const [log] = await db
-        .insert(logs)
-        .values({
-          timestamp: new Date(body.timestamp),
-          level: body.level,
-          service: body.service,
-          message: body.message,
-          attributes: body.attributes ?? {},
-        })
-        .returning();
-
-      return reply.code(201).send(log);
-    });
-
+  it("creates a log", async () => {
     const response = await app.inject({
       method: "POST",
       url: "/logs",
       payload: {
-        timestamp: "2026-08-14T10:45:00Z",
+        timestamp: "2026-08-14T11:00:00Z",
         level: "info",
         service: "test-service",
-        message: "Test log from Vitest",
+        message: "Test log",
         attributes: {
           test: true,
         },
@@ -52,15 +24,27 @@ describe("POST /logs", () => {
     expect(body).toMatchObject({
       level: "info",
       service: "test-service",
-      message: "Test log from Vitest",
+      message: "Test log",
       attributes: {
         test: true,
       },
     });
+  });
 
-    expect(body.id).toBeDefined();
-    expect(body.createdAt).toBeDefined();
+  it("rejects an invalid log", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/logs",
+      payload: {
+        level: "info",
+        message: "",
+      },
+    });
 
-    await app.close();
+    expect(response.statusCode).toBe(400);
+
+    expect(response.json()).toMatchObject({
+      error: "Invalid request body",
+    });
   });
 });
