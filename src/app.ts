@@ -1,3 +1,4 @@
+import "dotenv/config";
 import Fastify from "fastify";
 import { and, desc, eq } from "drizzle-orm";
 
