@@ -71,9 +71,9 @@ describe("GET /logs", () => {
 
     const body = response.json();
 
-    expect(body.data.length).toBeGreaterThan(0);
+    expect(body.logs.length).toBeGreaterThan(0);
 
-    for (const log of body.data) {
+    for (const log of body.logs) {
       expect(log.service).toBe("checkout-test");
     }
   });
@@ -99,9 +99,9 @@ describe("GET /logs", () => {
 
     const body = response.json();
 
-    expect(body.data.length).toBeGreaterThan(0);
+    expect(body.logs.length).toBeGreaterThan(0);
 
-    for (const log of body.data) {
+    for (const log of body.logs) {
       expect(log.level).toBe("error");
     }
   });
@@ -127,8 +127,8 @@ describe("GET /logs", () => {
 
     const body = response.json();
 
-    expect(body.data.length).toBe(1);
-    expect(body.data[0].message).toBe("Since boundary");
+    expect(body.logs.length).toBe(1);
+    expect(body.logs[0].message).toBe("Since boundary");
   });
 
   it("filters using until exclusively", async () => {
@@ -152,7 +152,7 @@ describe("GET /logs", () => {
 
     const body = response.json();
 
-    expect(body.data).toHaveLength(0);
+    expect(body.logs).toHaveLength(0);
   });
 
   it("filters by message substring case-insensitively", async () => {
@@ -176,8 +176,8 @@ describe("GET /logs", () => {
 
     const body = response.json();
 
-    expect(body.data).toHaveLength(1);
-    expect(body.data[0].message).toBe("Payment DECLINED by bank");
+    expect(body.logs).toHaveLength(1);
+    expect(body.logs[0].message).toBe("Payment DECLINED by bank");
   });
 
   it("filters by attributes", async () => {
@@ -205,8 +205,8 @@ describe("GET /logs", () => {
 
     const body = response.json();
 
-    expect(body.data).toHaveLength(1);
-    expect(body.data[0].attributes.user_id).toBe("42");
+    expect(body.logs).toHaveLength(1);
+    expect(body.logs[0].attributes.user_id).toBe("42");
   });
 
   it("supports combining multiple filters", async () => {
@@ -234,8 +234,8 @@ describe("GET /logs", () => {
 
     const body = response.json();
 
-    expect(body.data).toHaveLength(1);
-    expect(body.data[0]).toMatchObject({
+    expect(body.logs).toHaveLength(1);
+    expect(body.logs[0]).toMatchObject({
       level: "error",
       service: "combined-test",
       message: "Payment DECLINED",
@@ -255,7 +255,7 @@ describe("GET /logs", () => {
 
     const body = response.json();
 
-    expect(body.data.length).toBeLessThanOrEqual(100);
+    expect(body.logs.length).toBeLessThanOrEqual(100);
   });
 
   it("accepts a limit up to 1000", async () => {
@@ -362,13 +362,13 @@ describe("GET /logs", () => {
 
     const firstBody = firstResponse.json();
 
-    expect(firstBody.data).toHaveLength(2);
-    expect(firstBody.nextCursor).toBeTruthy();
+    expect(firstBody.logs).toHaveLength(2);
+    expect(firstBody.next_cursor).toBeTruthy();
 
     const secondResponse = await app.inject({
       method: "GET",
       url: `/logs?service=cursor-test&limit=2&cursor=${encodeURIComponent(
-        firstBody.nextCursor,
+        firstBody.next_cursor,
       )}`,
     });
 
@@ -376,7 +376,7 @@ describe("GET /logs", () => {
 
     const secondBody = secondResponse.json();
 
-    expect(secondBody.data).toHaveLength(1);
-    expect(secondBody.data[0].message).toBe("Cursor third");
+    expect(secondBody.logs).toHaveLength(1);
+    expect(secondBody.logs[0].message).toBe("Cursor third");
   });
 });
