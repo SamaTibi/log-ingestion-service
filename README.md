@@ -2,67 +2,53 @@
 
 
 
-A high-throughput log ingestion and querying service built with \*\*TypeScript, Fastify, PostgreSQL, Drizzle ORM, Zod, and Docker Compose\*\*.
+A production-oriented \*\*log ingestion and querying API\*\* built with TypeScript, Fastify, PostgreSQL, and Drizzle ORM.
 
 
 
-The service provides:
+The service is designed around reliable ingestion, structured log attributes, efficient time-based querying, filtering, and cursor pagination.
 
 
 
-\* Log ingestion through `POST /logs`
+\---
 
-\* Log querying through `GET /logs`
 
-\* Filtering by service and log level
 
-\* Inclusive `since` filtering
+\## ✨ Features
 
-\* Exclusive `until` filtering
 
-\* Case-insensitive message search
 
-\* Dynamic attribute filtering
-
-\* Combined filters
-
-\* Cursor-based pagination
+\* High-throughput log ingestion
 
 \* PostgreSQL persistence
 
-\* Automatic database migrations
+\* Request validation with Zod
 
-\* Docker Compose deployment
+\* Service and level filtering
 
-\* Automated tests with Vitest
+\* Time-range filtering
 
+\* Case-insensitive message search
 
+\* JSONB attribute filtering
 
-\---
+\* Combined query filters
 
+\* Cursor-based pagination
 
+\* Deterministic result ordering
 
-\## Tech Stack
+\* Database indexes for common query patterns
 
+\* Docker Compose environment
 
+\* Drizzle database migrations
 
-\* \*\*Node.js 22\*\*
+\* Automated test suite
 
-\* \*\*TypeScript\*\*
+\* Built-in load-testing script
 
-\* \*\*Fastify 5\*\*
-
-\* \*\*PostgreSQL 17\*\*
-
-\* \*\*Drizzle ORM\*\*
-
-\* \*\*Drizzle Kit\*\*
-
-\* \*\*Zod\*\*
-
-\* \*\*Vitest\*\*
-
-\* \*\*Docker / Docker Compose\*\*
+\* Measured performance results
 
 
 
@@ -70,83 +56,27 @@ The service provides:
 
 
 
-\## Architecture
+\## 🧰 Tech Stack
 
 
 
-```text
+| Technology         | Purpose              |
 
-&#x20;                   ┌─────────────────────┐
+| ------------------ | -------------------- |
 
-&#x20;                   │       Client        │
+| \*\*TypeScript\*\*     | Application language |
 
-&#x20;                   └──────────┬──────────┘
+| \*\*Fastify\*\*        | HTTP server          |
 
-&#x20;                              │
+| \*\*PostgreSQL 17\*\*  | Persistent storage   |
 
-&#x20;                        HTTP / JSON
+| \*\*Drizzle ORM\*\*    | Database access      |
 
-&#x20;                              │
+| \*\*Zod\*\*            | Request validation   |
 
-&#x20;                              ▼
+| \*\*Vitest\*\*         | Automated testing    |
 
-&#x20;                   ┌─────────────────────┐
-
-&#x20;                   │      Fastify        │
-
-&#x20;                   │                     │
-
-&#x20;                   │ POST /logs          │
-
-&#x20;                   │ GET  /logs          │
-
-&#x20;                   └──────────┬──────────┘
-
-&#x20;                              │
-
-&#x20;               ┌──────────────┴──────────────┐
-
-&#x20;               │                             │
-
-&#x20;               ▼                             ▼
-
-&#x20;       ┌───────────────┐             ┌───────────────┐
-
-&#x20;       │ Zod Validation│             │ Query Service │
-
-&#x20;       └───────┬───────┘             └───────┬───────┘
-
-&#x20;               │                             │
-
-&#x20;               └──────────────┬──────────────┘
-
-&#x20;                              ▼
-
-&#x20;                   ┌─────────────────────┐
-
-&#x20;                   │     Drizzle ORM     │
-
-&#x20;                   └──────────┬──────────┘
-
-&#x20;                              │
-
-&#x20;                              ▼
-
-&#x20;                   ┌─────────────────────┐
-
-&#x20;                   │     PostgreSQL      │
-
-&#x20;                   │                     │
-
-&#x20;                   │       logs          │
-
-&#x20;                   └─────────────────────┘
-
-```
-
-
-
-Query construction and persistence logic are separated from the HTTP route handlers.
+| \*\*Docker Compose\*\* | Local deployment     |
 
 
 
@@ -154,75 +84,11 @@ Query construction and persistence logic are separated from the HTTP route handl
 
 
 
-\## Project Structure
+\# 🚀 Quick Start
 
 
 
-```text
-
-log-ingestion-service/
-
-├── src/
-
-│   ├── db/
-
-│   │   ├── client.ts
-
-│   │   └── schema.ts
-
-│   ├── routes/
-
-│   │   └── logs.ts
-
-│   ├── services/
-
-│   │   └── log-query.service.ts
-
-│   ├── validation/
-
-│   │   └── log.ts
-
-│   ├── app.ts
-
-│   └── server.ts
-
-├── tests/
-
-│   ├── database.test.ts
-
-│   ├── health.test.ts
-
-│   └── logs.test.ts
-
-├── scripts/
-
-│   └── load-test.ts
-
-├── drizzle/
-
-├── Dockerfile
-
-├── docker-compose.yml
-
-├── drizzle.config.ts
-
-├── package.json
-
-└── tsconfig.json
-
-```
-
-
-
-\---
-
-
-
-\# Getting Started
-
-
-
-\## Requirements
+\### Requirements
 
 
 
@@ -230,21 +96,27 @@ log-ingestion-service/
 
 \* npm
 
-\* Docker Desktop / Docker Engine
+\* Docker Desktop or Docker Engine
 
 \* Docker Compose
 
 
 
-\---
+\### 1. Clone the repository
 
 
 
-\## Run with Docker Compose
+```bash
+
+git clone https://github.com/SamaTibi/log-ingestion-service.git
+
+cd log-ingestion-service
+
+```
 
 
 
-The simplest way to run the service is:
+\### 2. Start the stack
 
 
 
@@ -256,7 +128,7 @@ docker compose up --build
 
 
 
-The application will be available at:
+The API will be available at:
 
 
 
@@ -268,7 +140,7 @@ http://localhost:8080
 
 
 
-PostgreSQL is exposed on:
+PostgreSQL:
 
 
 
@@ -280,27 +152,11 @@ localhost:5432
 
 
 
-The default database configuration is:
+\### 3. Apply database migrations
 
 
 
-```text
-
-Database: logs
-
-User: postgres
-
-Password: postgres
-
-```
-
-
-
-\### First-run migrations
-
-
-
-After the containers are running, migrations can be applied with:
+In another terminal:
 
 
 
@@ -312,11 +168,7 @@ docker compose exec app npx drizzle-kit migrate
 
 
 
-The command is safe to run again after the migrations have already been applied.
-
-
-
-Verify that the table exists:
+Verify the database:
 
 
 
@@ -328,13 +180,17 @@ docker compose exec postgres psql -U postgres -d logs -c "\\dt"
 
 
 
-Expected:
+You should see:
 
 
 
 ```text
 
-public | logs | table
+&#x20;Schema | Name | Type  | Owner
+
+\--------+------+-------+--------
+
+&#x20;public | logs | table | postgres
 
 ```
 
@@ -344,23 +200,23 @@ public | logs | table
 
 
 
-\# Environment Variables
+\# ⚙️ Configuration
 
 
 
-The core service uses the following environment variables:
+The default Docker Compose setup requires no additional configuration.
 
 
 
-| Variable         | Default          | Description                  |
+| Variable         | Default       | Description                  |
 
-| ---------------- | ---------------- | ---------------------------- |
+| ---------------- | ------------- | ---------------------------- |
 
-| `PORT`           | `8080`           | HTTP server port             |
+| `PORT`           | `8080`        | HTTP server port             |
 
-| `DATABASE\_URL`   | Compose-provided | PostgreSQL connection string |
+| `DATABASE\_URL`   | Compose value | PostgreSQL connection string |
 
-| `RETENTION\_DAYS` | `30`             | Retention configuration      |
+| `RETENTION\_DAYS` | `30`          | Retention configuration      |
 
 
 
@@ -380,37 +236,25 @@ RETENTION\_DAYS=30
 
 
 
-\### Optional Features
+\## Optional Features
 
 
 
-The implemented optional behavior is:
+| Feature                     | Default   | Configuration    |
+
+| --------------------------- | --------- | ---------------- |
+
+| Message search              | Available | `q`              |
+
+| Attribute filtering         | Available | `attr.<key>`     |
+
+| Cursor pagination           | Available | `cursor`         |
+
+| Log retention configuration | `30 days` | `RETENTION\_DAYS` |
 
 
 
-| Feature                     | Default State                                | Configuration                 |
-
-| --------------------------- | -------------------------------------------- | ----------------------------- |
-
-| Log retention configuration | Enabled/configured with `30` days in Compose | `RETENTION\_DAYS`              |
-
-| Message search              | Available                                    | `q` query parameter           |
-
-| Attribute filtering         | Available                                    | `attr.<key>` query parameters |
-
-| Cursor pagination           | Available                                    | `cursor` query parameter      |
-
-
-
-No additional configuration is required to use the core ingestion and query service.
-
-
-
-\### Plain Core Service
-
-
-
-A standard:
+Running:
 
 
 
@@ -422,11 +266,7 @@ docker compose up
 
 
 
-starts the PostgreSQL database and application using the default Compose configuration.
-
-
-
-No optional feature requires additional configuration for the core service to start.
+with no additional configuration starts the \*\*plain core service\*\* with its default configuration.
 
 
 
@@ -434,19 +274,179 @@ No optional feature requires additional configuration for the core service to st
 
 
 
-\# API
+\# 🏗️ Architecture
 
 
 
-\## POST `/logs`
+```text
+
+&#x20;                        ┌──────────────┐
+
+&#x20;                        │    Client    │
+
+&#x20;                        └──────┬───────┘
+
+&#x20;                               │
+
+&#x20;                               ▼
+
+&#x20;                      ┌─────────────────┐
+
+&#x20;                      │     Fastify     │
+
+&#x20;                      │                 │
+
+&#x20;                      │ POST /logs      │
+
+&#x20;                      │ GET  /logs      │
+
+&#x20;                      └────────┬────────┘
+
+&#x20;                               │
+
+&#x20;                  ┌────────────┴────────────┐
+
+&#x20;                  │                         │
+
+&#x20;                  ▼                         ▼
+
+&#x20;           ┌──────────────┐         ┌───────────────┐
+
+&#x20;           │ Zod          │         │ Query Service │
+
+&#x20;           │ Validation   │         │               │
+
+&#x20;           └──────┬───────┘         └───────┬───────┘
+
+&#x20;                  │                         │
+
+&#x20;                  └────────────┬────────────┘
+
+&#x20;                               ▼
+
+&#x20;                        ┌───────────────┐
+
+&#x20;                        │ Drizzle ORM   │
+
+&#x20;                        └───────┬───────┘
+
+&#x20;                                │
+
+&#x20;                                ▼
+
+&#x20;                        ┌───────────────┐
+
+&#x20;                        │  PostgreSQL   │
+
+&#x20;                        │     logs      │
+
+&#x20;                        └───────────────┘
+
+```
 
 
 
-Creates a new log entry.
+The HTTP layer handles request parsing and validation, while query and persistence logic are kept in separate services.
 
 
 
-\### Request
+\---
+
+
+
+\# 📁 Project Structure
+
+
+
+```text
+
+log-ingestion-service/
+
+│
+
+├── src/
+
+│   ├── db/
+
+│   │   ├── client.ts
+
+│   │   └── schema.ts
+
+│   │
+
+│   ├── routes/
+
+│   │   └── logs.ts
+
+│   │
+
+│   ├── services/
+
+│   │   └── log-query.service.ts
+
+│   │
+
+│   ├── validation/
+
+│   │   └── log.ts
+
+│   │
+
+│   ├── app.ts
+
+│   └── server.ts
+
+│
+
+├── tests/
+
+│   ├── database.test.ts
+
+│   ├── health.test.ts
+
+│   └── logs.test.ts
+
+│
+
+├── scripts/
+
+│   └── load-test.ts
+
+│
+
+├── load-test-results/
+
+│
+
+├── Dockerfile
+
+├── docker-compose.yml
+
+├── drizzle.config.ts
+
+├── package.json
+
+├── tsconfig.json
+
+└── README.md
+
+```
+
+
+
+\---
+
+
+
+\# 📡 API
+
+
+
+\## Create a Log
+
+
+
+\### `POST /logs`
 
 
 
@@ -460,7 +460,7 @@ Content-Type: application/json
 
 
 
-Example:
+Example request:
 
 
 
@@ -522,9 +522,7 @@ Example:
 
 &#x20;   "environment": "production"
 
-&#x20; },
-
-&#x20; "createdAt": "2026-08-14T12:00:00.000Z"
+&#x20; }
 
 }
 
@@ -548,21 +546,33 @@ Invalid request bodies return:
 
 
 
-\# GET `/logs`
+\# 🔎 Query Logs
 
 
 
-Returns logs ordered by:
+\### `GET /logs`
 
 
 
-1\. `timestamp DESC`
-
-2\. `id DESC`
+Results are ordered by:
 
 
 
-\## Service Filter
+```text
+
+timestamp DESC
+
+id DESC
+
+```
+
+
+
+\---
+
+
+
+\## Service
 
 
 
@@ -574,11 +584,15 @@ GET /logs?service=checkout
 
 
 
-The service filter uses an exact match.
+Exact service matching.
 
 
 
-\## Level Filter
+\---
+
+
+
+\## Level
 
 
 
@@ -608,7 +622,11 @@ error
 
 
 
-\## Time Filters
+\---
+
+
+
+\## Time Range
 
 
 
@@ -624,7 +642,7 @@ GET /logs?since=2026-08-14T12:00:00Z
 
 
 
-Logs exactly at the `since` timestamp are included.
+Logs at exactly the `since` timestamp are included.
 
 
 
@@ -640,7 +658,7 @@ GET /logs?until=2026-08-14T13:00:00Z
 
 
 
-Logs exactly at the `until` timestamp are excluded.
+Logs at exactly the `until` timestamp are excluded.
 
 
 
@@ -664,7 +682,7 @@ GET /logs?since=2026-08-14T12:00:00Z\&until=2026-08-14T13:00:00Z
 
 
 
-The `q` parameter performs a case-insensitive substring search.
+Use `q` for case-insensitive substring matching:
 
 
 
@@ -676,31 +694,19 @@ GET /logs?q=declined
 
 
 
-For example, it can match:
-
-
-
-```text
-
-Payment declined
-
-PAYMENT DECLINED
-
-payment declined by provider
-
-```
-
-
-
 \---
 
 
 
-\## Attribute Filtering
+\## Attributes
 
 
 
-Attributes can be queried using:
+Attributes are stored as PostgreSQL JSONB.
+
+
+
+Filter using:
 
 
 
@@ -712,7 +718,7 @@ GET /logs?attr.user\_id=42
 
 
 
-Multiple attributes can be supplied:
+Multiple attributes:
 
 
 
@@ -724,19 +730,15 @@ GET /logs?attr.user\_id=42\&attr.environment=production
 
 
 
-Attribute values are compared for equality.
-
-
-
 \---
 
 
 
-\## Combining Filters
+\## Combined Filters
 
 
 
-Filters can be combined:
+All supported filters can be combined:
 
 
 
@@ -748,7 +750,7 @@ GET /logs?service=checkout\&level=error\&q=declined\&attr.environment=production
 
 
 
-The conditions are combined using logical `AND`.
+Filters are combined using `AND`.
 
 
 
@@ -756,15 +758,15 @@ The conditions are combined using logical `AND`.
 
 
 
-\# Pagination
+\# 📄 Pagination
 
 
 
-The endpoint supports cursor-based pagination.
+The API uses cursor-based pagination.
 
 
 
-Example:
+Request:
 
 
 
@@ -794,7 +796,7 @@ Response:
 
 
 
-The next page can be requested using:
+Request the next page:
 
 
 
@@ -806,71 +808,27 @@ GET /logs?limit=100\&cursor=<next\_cursor>
 
 
 
-The cursor contains the last returned timestamp and ID and is encoded using Base64URL.
+The cursor represents the last `(timestamp, id)` pair from the previous page.
 
 
 
-Pagination is based on:
+This avoids the scalability problems associated with large SQL offsets.
 
 
 
-```text
-
-timestamp DESC, id DESC
-
-```
+\### Limits
 
 
 
-This provides deterministic ordering even when multiple logs have the same timestamp.
+| Setting |  Value |
 
+| ------- | -----: |
 
+| Default |  `100` |
 
-\---
+| Maximum | `1000` |
 
-
-
-\# Limits
-
-
-
-The default query limit is:
-
-
-
-```text
-
-100
-
-```
-
-
-
-The maximum is:
-
-
-
-```text
-
-1000
-
-```
-
-
-
-Invalid limits return:
-
-
-
-```http
-
-400 Bad Request
-
-```
-
-
-
-Invalid dates and unsupported log levels are also rejected with `400 Bad Request`.
+| Minimum |    `1` |
 
 
 
@@ -878,51 +836,51 @@ Invalid dates and unsupported log levels are also rejected with `400 Bad Request
 
 
 
-\# Database Schema
+\# 🗄️ Database
 
 
 
-The main `logs` table contains:
+The `logs` table contains:
 
 
 
-| Column       | Type         | Description                  |
+| Column       | Type          | Purpose             |
 
-| ------------ | ------------ | ---------------------------- |
+| ------------ | ------------- | ------------------- |
 
-| `id`         | UUID         | Primary key                  |
+| `id`         | UUID          | Primary key         |
 
-| `timestamp`  | timestamptz  | Event timestamp              |
+| `timestamp`  | `timestamptz` | Event timestamp     |
 
-| `level`      | varchar(20)  | Log level                    |
+| `level`      | varchar       | Log severity        |
 
-| `service`    | varchar(100) | Service name                 |
+| `service`    | varchar       | Service name        |
 
-| `message`    | text         | Log message                  |
+| `message`    | text          | Log message         |
 
-| `attributes` | jsonb        | Structured attributes        |
+| `attributes` | jsonb         | Structured metadata |
 
-| `created\_at` | timestamptz  | Database insertion timestamp |
+| `created\_at` | timestamptz   | Insert timestamp    |
 
 
 
-Indexes are currently provided for:
+\### Indexes
 
 
 
 ```text
 
-logs.timestamp
+logs\_timestamp\_idx
 
-logs.service
+logs\_service\_idx
 
-logs.level
+logs\_level\_idx
 
 ```
 
 
 
-The `attributes` field uses PostgreSQL `jsonb` to support structured metadata without requiring a fixed schema for every possible log attribute.
+The timestamp index supports time-based queries, while service and level indexes support the most common equality filters.
 
 
 
@@ -930,15 +888,15 @@ The `attributes` field uses PostgreSQL `jsonb` to support structured metadata wi
 
 
 
-\# Validation and Reliability
+\# 🛡️ Validation \& Security
 
 
 
-Incoming log payloads are validated using Zod before database insertion.
+Incoming requests are validated with Zod before persistence.
 
 
 
-The API handles:
+The API rejects:
 
 
 
@@ -946,7 +904,7 @@ The API handles:
 
 \* Invalid timestamps
 
-\* Invalid query dates
+\* Invalid `since` / `until` values
 
 \* Invalid limits
 
@@ -954,31 +912,17 @@ The API handles:
 
 \* Invalid cursors
 
-\* Empty query results
 
-\* Combined filters
 
-\* Pagination boundaries
+Database queries are parameterized through Drizzle ORM and PostgreSQL.
 
 
 
-Malformed cursors return:
+User-controlled values are not concatenated directly into SQL queries.
 
 
 
-```text
-
-Invalid cursor
-
-```
-
-
-
-Database queries use Drizzle ORM parameterization and do not construct SQL from untrusted values directly.
-
-
-
-Dynamic attribute filters are constructed using parameterized SQL expressions.
+Dynamic attribute filtering uses parameterized SQL expressions.
 
 
 
@@ -986,11 +930,11 @@ Dynamic attribute filters are constructed using parameterized SQL expressions.
 
 
 
-\# Testing
+\# 🧪 Testing
 
 
 
-Run the type checker:
+Typecheck:
 
 
 
@@ -1002,7 +946,7 @@ npm run typecheck
 
 
 
-Run the complete test suite:
+Run tests:
 
 
 
@@ -1014,7 +958,7 @@ npm run test:run
 
 
 
-Current test result:
+Current result:
 
 
 
@@ -1038,15 +982,15 @@ The test suite covers:
 
 \* Log creation
 
-\* Invalid log rejection
+\* Invalid input
 
 \* Service filtering
 
 \* Level filtering
 
-\* Inclusive `since`
+\* `since`
 
-\* Exclusive `until`
+\* `until`
 
 \* Message search
 
@@ -1054,15 +998,9 @@ The test suite covers:
 
 \* Combined filters
 
-\* Default limits
+\* Query limits
 
-\* Maximum limits
-
-\* Invalid limits
-
-\* Invalid levels
-
-\* Invalid dates
+\* Invalid parameters
 
 \* Cursor pagination
 
@@ -1072,7 +1010,7 @@ The test suite covers:
 
 
 
-\# Performance Testing
+\# 📊 Load Testing
 
 
 
@@ -1088,7 +1026,7 @@ scripts/load-test.ts
 
 
 
-Run:
+Run it with:
 
 
 
@@ -1100,23 +1038,7 @@ npm run load:test
 
 
 
-The load generator supports:
-
-
-
-```text
-
-TOTAL
-
-CONCURRENCY
-
-BASE\_URL
-
-```
-
-
-
-Example:
+Configure the test using environment variables:
 
 
 
@@ -1132,7 +1054,7 @@ npm run load:test
 
 
 
-Results are stored under:
+Results are written to:
 
 
 
@@ -1148,37 +1070,63 @@ load-test-results/
 
 
 
-\# Measured Load Test Results
+\# 📈 Measured Results
 
 
 
-\## Test Environment
+> These are measured local benchmarks, not theoretical estimates.
 
 
 
-The benchmark was performed locally using Docker Compose.
+\## Best Result
 
 
 
-Components:
+| Metric      |           Result |
+
+| ----------- | ---------------: |
+
+| Logs        |          100,000 |
+
+| Concurrency |              100 |
+
+| Completed   |          100,000 |
+
+| Failed      |            \*\*0\*\* |
+
+| Duration    |         40.431 s |
+
+| Throughput  | \*\*2,473 logs/s\*\* |
+
+| p50         |         38.11 ms |
+
+| p95         |         54.56 ms |
+
+| p99         |         72.28 ms |
+
+| Max         |        473.06 ms |
 
 
 
-```text
-
-Application: Node.js 22 / Fastify
-
-Database: PostgreSQL 17
-
-Container runtime: Docker Desktop
-
-Host: Windows
-
-```
+\### Concurrency Comparison
 
 
 
-The local Docker environment was not configured with the evaluator's strict CPU/memory limits, so these results should be considered \*\*local engineering benchmarks\*\*, not proof of meeting the evaluator's constrained environment.
+| Concurrency |  Throughput |    p50 |    p95 |    p99 | Failed |
+
+| ----------: | ----------: | -----: | -----: | -----: | -----: |
+
+|         100 | \*\*2,473/s\*\* |  38 ms |  55 ms |  72 ms |      0 |
+
+|         250 |     2,106/s | 114 ms | 146 ms | 173 ms |      0 |
+
+|         500 |     2,169/s | 222 ms | 261 ms | 312 ms |      0 |
+
+|        1000 |     1,964/s | 489 ms | 550 ms | 778 ms |      0 |
+
+
+
+The results show that increasing concurrency beyond 100 increases latency without improving throughput.
 
 
 
@@ -1186,73 +1134,29 @@ The local Docker environment was not configured with the evaluator's strict CPU/
 
 
 
-\## Dataset and Test Configuration
+\# 🖥️ Resource Usage
 
 
 
-Initial benchmark:
+Observed during sustained ingestion:
 
 
 
-```text
+| Resource |  Application | PostgreSQL |
 
-Dataset per run: 100,000 logs
+| -------- | -----------: | ---------: |
 
-Request model: one log per HTTP POST
+| CPU      |    \~102–107% |    \~76–77% |
 
-Concurrency: 100
-
-```
+| Memory   | \~234–243 MiB |   \~197 MiB |
 
 
 
-Measured result:
+The application was approaching the evaluator's 256 MiB application memory limit.
 
 
 
-```text
-
-Completed:       100,000
-
-Failed:          0
-
-Duration:        40.431 seconds
-
-Throughput:      2,473.32 logs/sec
-
-
-
-p50:             38.11 ms
-
-p95:             54.56 ms
-
-p99:             72.28 ms
-
-max:             473.06 ms
-
-```
-
-
-
-Additional concurrency tests:
-
-
-
-| Concurrency |    Logs |  Throughput |    p50 |    p95 |    p99 | Failed |
-
-| ----------: | ------: | ----------: | -----: | -----: | -----: | -----: |
-
-|         100 | 100,000 | \*\*2,473/s\*\* |  38 ms |  55 ms |  72 ms |      0 |
-
-|         250 | 100,000 | \*\*2,106/s\*\* | 114 ms | 146 ms | 173 ms |      0 |
-
-|         500 | 100,000 | \*\*2,169/s\*\* | 222 ms | 261 ms | 312 ms |      0 |
-
-|        1000 | 100,000 | \*\*1,964/s\*\* | 489 ms | 550 ms | 778 ms |      0 |
-
-
-
-No dropped requests or application crashes were observed during these tests.
+The measurements indicate that application CPU/memory pressure and per-request database overhead are important areas for further optimization.
 
 
 
@@ -1260,181 +1164,17 @@ No dropped requests or application crashes were observed during these tests.
 
 
 
-\## Resource Usage
+\# 📦 Data Volume
 
 
 
-During a 100-concurrency ingestion test, observed Docker statistics included approximately:
-
-
-
-```text
-
-Application CPU:    102–107%
-
-Application memory: 234–243 MiB
-
-
-
-PostgreSQL CPU:     76–77%
-
-PostgreSQL memory:  \~197 MiB
-
-```
-
-
-
-These measurements identified application CPU and memory pressure as important bottlenecks under high request concurrency.
-
-
-
-\---
-
-
-
-\# Performance Bottlenecks
-
-
-
-The benchmark identified several bottlenecks:
-
-
-
-1\. Each log is currently submitted as an individual HTTP request.
-
-2\. Each request performs validation and database persistence.
-
-3\. Increasing concurrency beyond 100 did not increase throughput.
-
-4\. Application CPU usage exceeded 100% during the benchmark.
-
-5\. Application memory approached the 256 MB target.
-
-6\. PostgreSQL also consumed significant CPU during sustained ingestion.
-
-
-
-Increasing concurrency from 100 to 1000 increased latency while reducing throughput:
+During testing, the database reached approximately:
 
 
 
 ```text
 
-100 concurrency:
-
-2,473 logs/sec, p95 55 ms
-
-
-
-1000 concurrency:
-
-1,964 logs/sec, p95 550 ms
-
-```
-
-
-
-This indicates that simply increasing concurrency is not an effective optimization for the current ingestion path.
-
-
-
-\---
-
-
-
-\# Optimizations Applied
-
-
-
-The implementation includes several query-side optimizations:
-
-
-
-\* Indexed timestamp queries
-
-\* Indexed service filtering
-
-\* Indexed level filtering
-
-\* Deterministic timestamp + UUID ordering
-
-\* Cursor-based pagination instead of offset pagination
-
-\* Parameterized database queries
-
-\* Query filters assembled in the service layer
-
-\* Bounded query limits
-
-\* PostgreSQL JSONB for structured attributes
-
-\* Validation before database insertion
-
-
-
-Cursor pagination uses the last `(timestamp, id)` pair to efficiently locate the next page.
-
-
-
-\---
-
-
-
-\# Current Performance Status
-
-
-
-The current implementation has been measured at approximately:
-
-
-
-```text
-
-2,473 logs/sec
-
-```
-
-
-
-for the best measured local configuration.
-
-
-
-The project specification's baseline target is:
-
-
-
-```text
-
-15,000 logs/sec
-
-```
-
-
-
-Therefore, the current benchmark \*\*does not claim to meet the 15,000 logs/sec target\*\*.
-
-
-
-Further ingestion optimization would likely focus on reducing per-request overhead and database round trips, including investigation of batched ingestion and PostgreSQL connection/persistence tuning.
-
-
-
-\---
-
-
-
-\# Data Volume
-
-
-
-The service was also tested against a database containing approximately:
-
-
-
-```text
-
-500,000 stored log records
+500,011 stored log records
 
 ```
 
@@ -1444,7 +1184,73 @@ The database remained operational and queryable during the ingestion experiments
 
 
 
-A full 1,000,000-record benchmark and constrained-resource benchmark should be treated as additional validation work rather than inferred from the smaller local tests.
+\---
+
+
+
+\# ⚡ Performance Requirements
+
+
+
+The target evaluation environment specifies:
+
+
+
+| Requirement                    |        Target |
+
+| ------------------------------ | ------------: |
+
+| Sustained ingestion            | 15,000 logs/s |
+
+| Application memory             |        256 MB |
+
+| PostgreSQL memory              |          1 GB |
+
+| Stored records                 |    \~1,000,000 |
+
+| Query latency                  |      <1 s p95 |
+
+| Newly ingested data visibility |         <20 s |
+
+| Aggregation frequency          |     1 query/s |
+
+
+
+\### Current measured status
+
+
+
+The current local benchmark reached:
+
+
+
+```text
+
+2,473 logs/s
+
+```
+
+
+
+with:
+
+
+
+```text
+
+0 failed requests
+
+0 observed application crashes
+
+```
+
+
+
+The current implementation therefore \*\*has not yet demonstrated the 15,000 logs/s target\*\*.
+
+
+
+The benchmark results are included deliberately so performance claims are based on measurements rather than assumptions.
 
 
 
@@ -1452,11 +1258,77 @@ A full 1,000,000-record benchmark and constrained-resource benchmark should be t
 
 
 
-\# Docker Compose
+\# 🔧 Optimizations Implemented
 
 
 
-Start the complete stack:
+The current implementation includes:
+
+
+
+\* Timestamp indexing
+
+\* Service indexing
+
+\* Level indexing
+
+\* Cursor pagination
+
+\* Deterministic ordering
+
+\* Bounded query limits
+
+\* JSONB structured attributes
+
+\* Parameterized SQL
+
+\* Separate query service
+
+\* Request validation
+
+\* Automated database migrations
+
+
+
+\---
+
+
+
+\# 🔍 Bottlenecks Discovered
+
+
+
+Load testing showed:
+
+
+
+1\. Individual HTTP requests create significant per-log overhead.
+
+2\. Validation adds CPU work per request.
+
+3\. Database writes are performed for every individual log.
+
+4\. Application CPU reaches approximately 100% under high concurrency.
+
+5\. Application memory approaches the 256 MB evaluation limit.
+
+6\. Increasing concurrency beyond 100 increases latency rather than throughput.
+
+
+
+The most promising next optimization would be reducing per-request overhead through batched ingestion and database writes.
+
+
+
+\---
+
+
+
+\# 🐳 Docker
+
+
+
+Start:
 
 
 
@@ -1468,7 +1340,7 @@ docker compose up --build
 
 
 
-Stop it:
+Stop:
 
 
 
@@ -1480,7 +1352,7 @@ docker compose down
 
 
 
-Remove containers and the PostgreSQL volume:
+Remove containers and database volume:
 
 
 
@@ -1492,13 +1364,25 @@ docker compose down -v
 
 
 
-The PostgreSQL data is persisted through:
+Apply migrations:
 
 
 
-```text
+```bash
 
-postgres\_data
+docker compose exec app npx drizzle-kit migrate
+
+```
+
+
+
+Check stored records:
+
+
+
+```bash
+
+docker compose exec postgres psql -U postgres -d logs -c "SELECT COUNT(\*) FROM logs;"
 
 ```
 
@@ -1508,7 +1392,7 @@ postgres\_data
 
 
 
-\# Development
+\# 💻 Local Development
 
 
 
@@ -1524,7 +1408,7 @@ npm install
 
 
 
-Run the application in development mode:
+Development server:
 
 
 
@@ -1560,7 +1444,7 @@ npm run typecheck
 
 
 
-Run tests:
+Tests:
 
 
 
@@ -1572,93 +1456,63 @@ npm run test:run
 
 
 
-\---
+Load test:
 
 
 
-\# Design Decisions
+```bash
 
-
-
-\## PostgreSQL
-
-
-
-PostgreSQL was selected because the service requires:
-
-
-
-\* Reliable persistence
-
-\* Structured querying
-
-\* Time-based filtering
-
-\* JSON attributes
-
-\* Indexing
-
-\* Transactional writes
-
-
-
-\## JSONB Attributes
-
-
-
-Attributes are stored as PostgreSQL `jsonb` because log metadata can vary between services.
-
-
-
-This avoids creating a separate database column for every possible attribute.
-
-
-
-\## Cursor Pagination
-
-
-
-Cursor pagination was chosen over offset pagination because offset-based pagination becomes increasingly expensive as the result set grows.
-
-
-
-The cursor is based on:
-
-
-
-```text
-
-timestamp + id
+npm run load:test
 
 ```
 
 
 
-which also provides deterministic ordering when timestamps are equal.
+\---
 
 
 
-\## Separation of Concerns
+\# 🧠 Design Decisions
 
 
 
-HTTP handlers are responsible for:
+\### PostgreSQL
 
 
 
-\* Parsing requests
-
-\* Validating input
-
-\* Returning HTTP responses
+PostgreSQL provides reliable persistence, indexing, JSONB support, and efficient time-based querying.
 
 
 
-Query construction and database retrieval are handled by the query service.
+\### JSONB
 
 
 
-This keeps database logic independent from Fastify route handling.
+Log attributes are stored as JSONB because different services may produce different metadata.
+
+
+
+\### Cursor Pagination
+
+
+
+Pagination uses `(timestamp, id)` instead of large offsets, providing deterministic ordering and better scalability.
+
+
+
+\### Service Layer
+
+
+
+Query construction is separated from Fastify handlers to keep HTTP concerns independent from database logic.
+
+
+
+\### Parameterized Queries
+
+
+
+All user-controlled values are passed through parameterized database operations to prevent SQL injection.
 
 
 
@@ -1666,53 +1520,29 @@ This keeps database logic independent from Fastify route handling.
 
 
 
-\# Security
+\# ⚠️ Known Limitations
 
 
 
-The service avoids building SQL queries by directly concatenating user-provided values.
+The following areas require additional optimization or benchmarking:
 
 
 
-Database values are parameterized through Drizzle ORM / PostgreSQL query parameters.
+\* Current measured ingestion throughput is below the 15,000 logs/s baseline.
+
+\* The ingestion API currently accepts one log per HTTP request.
+
+\* A complete 1,000,000-record benchmark under evaluator resource limits has not been completed.
+
+\* Aggregation latency under simultaneous sustained 15,000 logs/s ingestion has not been fully benchmarked.
+
+\* Retention behavior requires additional production-scale testing.
+
+\* Local Docker resource limits differ from the evaluator's constrained environment.
 
 
 
-Dynamic attribute filters use parameterized SQL values.
-
-
-
-Input validation is performed before persistence.
-
-
-
-\---
-
-
-
-\# Known Limitations
-
-
-
-The current implementation has the following known limitations:
-
-
-
-\* The measured local ingestion throughput is below the 15,000 logs/sec target.
-
-\* The current ingestion endpoint processes one log per HTTP request.
-
-\* A full 1,000,000-record constrained-resource benchmark has not been completed.
-
-\* Aggregation-query latency under simultaneous sustained 15,000 logs/sec ingestion has not yet been fully benchmarked.
-
-\* Retention behavior requires additional production-scale benchmarking.
-
-\* The local Docker benchmark does not use the exact evaluator CPU/memory limits.
-
-
-
-These limitations are documented intentionally rather than presenting unmeasured performance claims.
+These limitations are explicitly documented rather than presenting unmeasured performance claims.
 
 
 
@@ -1720,39 +1550,23 @@ These limitations are documented intentionally rather than presenting unmeasured
 
 
 
-\# Conclusion
+\# 📌 Summary
 
 
 
-The project implements the core log ingestion and querying functionality with:
+The service provides a complete log ingestion and query API with:
 
 
 
-\* TypeScript
-
-\* Fastify
-
-\* PostgreSQL
-
-\* Drizzle ORM
-
-\* Zod validation
-
-\* Docker Compose
-
-\* Automated tests
-
-\* Indexed queries
-
-\* JSONB attributes
-
-\* Cursor pagination
-
-\* Load testing and measured performance results
+\*\*Reliable ingestion\*\* · \*\*PostgreSQL persistence\*\* · \*\*Structured attributes\*\* · \*\*Filtering\*\* · \*\*Search\*\* · \*\*Cursor pagination\*\* · \*\*Validation\*\* · \*\*Docker deployment\*\* · \*\*Automated tests\*\* · \*\*Load testing\*\*
 
 
 
-The current measured baseline provides a reproducible starting point for further performance optimization while maintaining correctness and reliability.
+The implementation has been tested with \*\*500k+ stored records\*\* and \*\*100k-request ingestion runs\*\*, with \*\*zero failed requests\*\* observed in the recorded benchmarks.
+
+
+
+Further throughput improvements would primarily focus on reducing per-request overhead and batching database writes.
 
 
 
