@@ -1,23 +1,19 @@
 import { db } from "../db/client.js";
 import { logs } from "../db/schema.js";
-import type { CreateLogInput } from "../validation/log.js";
 
-export interface IngestResult {
-  total: number;
-  accepted: number;
-  rejected: Array<{
-    index: number;
-    reason: string;
-  }>;
-}
+import type {
+  LogInput,
+  IngestLogsResult,
+} from "../types/logs.js";
 
 export async function ingestLogs(
-  input: CreateLogInput[],
-): Promise<IngestResult> {
-  const rejected: IngestResult["rejected"] = [];
+  input: LogInput[],
+): Promise<IngestLogsResult> {
+  const rejected: IngestLogsResult["rejected"] = [];
+
   const validLogs: Array<{
     timestamp: Date;
-    level: string;
+    level: LogInput["level"];
     service: string;
     message: string;
     attributes: Record<string, unknown>;
@@ -35,6 +31,7 @@ export async function ingestLogs(
         index: i,
         reason: "timestamp cannot be in the future",
       });
+
       continue;
     }
 

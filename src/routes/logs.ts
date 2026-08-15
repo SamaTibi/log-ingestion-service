@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { queryLogs } from "../services/log-query.service.js";
 import { ingestLogs } from "../services/log-ingestion.service.js";
 import { createLogSchema } from "../validation/log.js";
+import type { CreateLogInput } from "../validation/log.js";
 
 export async function logsRoutes(app: FastifyInstance) {
   app.post("/logs", async (request, reply) => {
@@ -50,6 +51,7 @@ export async function logsRoutes(app: FastifyInstance) {
     // }
     //
     // Also accept a raw array for compatibility.
+
     let rawLogs: unknown;
 
     if (Array.isArray(body)) {
@@ -78,8 +80,13 @@ export async function logsRoutes(app: FastifyInstance) {
       });
     }
 
-    const validLogs = [];
-    const rejected = [];
+    const validLogs: CreateLogInput[] = [];
+
+    const rejected: Array<{
+      index: number;
+      reason: string;
+      details?: unknown;
+    }> = [];
 
     for (let i = 0; i < rawLogs.length; i++) {
       const result = createLogSchema.safeParse(rawLogs[i]);
@@ -90,6 +97,7 @@ export async function logsRoutes(app: FastifyInstance) {
           reason: "Invalid log",
           details: result.error.flatten(),
         });
+
         continue;
       }
 
