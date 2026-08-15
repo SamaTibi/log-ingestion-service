@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { app } from "../src/app.js";
+import { beforeEach } from "vitest";
+import { resetDatabase } from "./helpers/reset-database.js";
+
+beforeEach(async () => {
+  await resetDatabase();
+});
 
 describe("POST /logs", () => {
   it("creates a log", async () => {

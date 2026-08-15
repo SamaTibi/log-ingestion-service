@@ -10,7 +10,8 @@
     "test": "vitest",
     "test:run": "vitest run",
     "typecheck": "tsc --noEmit",
-    "load:test": "tsx scripts/load-test.ts"
+    "load:test": "tsx scripts/load-test.ts",
+    "migrate": "drizzle-kit migrate"
   },
   "dependencies": {
     "dotenv": "^17.4.2",
