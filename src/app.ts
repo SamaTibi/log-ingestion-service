@@ -1,7 +1,11 @@
 import "dotenv/config";
+
 import Fastify from "fastify";
 
 import { logsRoutes } from "./routes/logs.js";
+import {
+  startRetentionWorker,
+} from "./services/retention.service.js";
 
 export const app = Fastify({
   logger: true,
@@ -14,3 +18,7 @@ app.get("/health", async () => {
 });
 
 app.register(logsRoutes);
+
+export const retentionTimer =
+  startRetentionWorker();
+

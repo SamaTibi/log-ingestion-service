@@ -23,12 +23,25 @@ export interface QueryLogsOptions {
   cursor?: string;
 }
 
+export interface AggregateLogsOptions {
+  bucket: "1m" | "5m" | "1h" | "1d";
+  groupBy?: "service" | "level";
+  service?: string;
+  level?: string;
+  since?: Date;
+  until?: Date;
+  q?: string;
+  attributes?: Record<string, string>;
+}
+
 interface Cursor {
   timestamp: string;
   id: string;
 }
 
-export async function queryLogs(options: QueryLogsOptions = {}) {
+export async function queryLogs(
+  options: QueryLogsOptions = {},
+) {
   const limit = Math.min(
     Math.max(options.limit ?? 100, 1),
     1000,
@@ -36,80 +49,55 @@ export async function queryLogs(options: QueryLogsOptions = {}) {
 
   const conditions = [];
 
-  // Filter by service
   if (options.service) {
-    conditions.push(eq(logs.service, options.service));
-  }
-
-  // Filter by level
-  if (options.level) {
-    conditions.push(eq(logs.level, options.level));
-  }
-
-  // since is inclusive
-  if (options.since) {
-    conditions.push(gte(logs.timestamp, options.since));
-  }
-
-  // until is exclusive
-  if (options.until) {
-    conditions.push(lt(logs.timestamp, options.until));
-  }
-
-  // Case-insensitive substring search in message
-  if (options.q) {
     conditions.push(
-      ilike(logs.message, `%${options.q}%`),
+      eq(logs.service, options.service),
     );
   }
 
-  // Filter by JSONB attributes
+  if (options.level) {
+    conditions.push(
+      eq(logs.level, options.level),
+    );
+  }
+
+  if (options.since) {
+    conditions.push(
+      gte(logs.timestamp, options.since),
+    );
+  }
+
+  if (options.until) {
+    conditions.push(
+      lt(logs.timestamp, options.until),
+    );
+  }
+
+  if (options.q) {
+    conditions.push(
+      ilike(logs.message, `%${escapeLike(options.q)}%`),
+    );
+  }
+
   if (options.attributes) {
-    for (const [key, value] of Object.entries(options.attributes)) {
+    for (const [key, value] of Object.entries(
+      options.attributes,
+    )) {
       conditions.push(
-        sql`${logs.attributes} ->> ${key} = ${value}`,
+        sql`${logs.attributes} @> ${JSON.stringify({
+          [key]: value,
+        })}::jsonb`,
       );
     }
   }
 
-  // Cursor pagination
   if (options.cursor) {
-    let cursor: Cursor;
+    const cursor = decodeCursor(options.cursor);
 
-    try {
-      cursor = JSON.parse(
-        Buffer.from(options.cursor, "base64url").toString("utf8"),
-      );
-    } catch {
-      throw new Error("Invalid cursor");
-    }
+    const cursorTimestamp = new Date(
+      cursor.timestamp,
+    );
 
-    if (
-      typeof cursor.timestamp !== "string" ||
-      typeof cursor.id !== "string"
-    ) {
-      throw new Error("Invalid cursor");
-    }
-
-    const cursorTimestamp = new Date(cursor.timestamp);
-
-    if (Number.isNaN(cursorTimestamp.getTime())) {
-      throw new Error("Invalid cursor");
-    }
-
-    /*
-     * Results are ordered:
-     *   timestamp DESC
-     *   id DESC
-     *
-     * Therefore, the next page contains rows where:
-     *
-     * timestamp < cursor timestamp
-     *
-     * OR, when timestamps are equal:
-     *
-     * id < cursor id
-     */
     conditions.push(
       or(
         lt(logs.timestamp, cursorTimestamp),
@@ -121,6 +109,10 @@ export async function queryLogs(options: QueryLogsOptions = {}) {
     );
   }
 
+  /*
+   * Fetch one extra row so we can determine whether
+   * another page exists.
+   */
   const rows = await db
     .select()
     .from(logs)
@@ -133,29 +125,185 @@ export async function queryLogs(options: QueryLogsOptions = {}) {
       desc(logs.timestamp),
       desc(logs.id),
     )
-    .limit(limit);
+    .limit(limit + 1);
+
+  const hasMore = rows.length > limit;
+
+  const resultLogs = hasMore
+    ? rows.slice(0, limit)
+    : rows;
 
   let nextCursor: string | null = null;
 
-  /*
-   * If we received a full page, there may be another page.
-   */
-  if (rows.length === limit) {
-    const last = rows[rows.length - 1];
+  if (hasMore && resultLogs.length > 0) {
+    const last =
+      resultLogs[resultLogs.length - 1];
 
-    const cursor: Cursor = {
+    nextCursor = encodeCursor({
       timestamp: last.timestamp.toISOString(),
       id: last.id,
-    };
-
-    nextCursor = Buffer.from(
-      JSON.stringify(cursor),
-    ).toString("base64url");
+    });
   }
 
   return {
-    logs: rows,
+    logs: resultLogs,
     next_cursor: nextCursor,
   };
 }
 
+export async function aggregateLogs(
+  options: AggregateLogsOptions,
+) {
+  const intervals = {
+    "1m": "1 minute",
+    "5m": "5 minutes",
+    "1h": "1 hour",
+    "1d": "1 day",
+  } as const;
+
+  const interval = intervals[options.bucket];
+
+  const conditions = [];
+
+  if (options.service) {
+    conditions.push(
+      eq(logs.service, options.service),
+    );
+  }
+
+  if (options.level) {
+    conditions.push(
+      eq(logs.level, options.level),
+    );
+  }
+
+  if (options.since) {
+    conditions.push(
+      gte(logs.timestamp, options.since),
+    );
+  }
+
+  if (options.until) {
+    conditions.push(
+      lt(logs.timestamp, options.until),
+    );
+  }
+
+  if (options.q) {
+    conditions.push(
+      ilike(logs.message, `%${escapeLike(options.q)}%`),
+    );
+  }
+
+  if (options.attributes) {
+    for (const [key, value] of Object.entries(
+      options.attributes,
+    )) {
+      conditions.push(
+        sql`${logs.attributes} @> ${JSON.stringify({
+          [key]: value,
+        })}::jsonb`,
+      );
+    }
+  }
+
+  let groupExpression = sql`NULL`;
+
+  if (options.groupBy === "service") {
+    groupExpression = sql`${logs.service}`;
+  }
+
+  if (options.groupBy === "level") {
+    groupExpression = sql`${logs.level}`;
+  }
+
+  return db
+    .select({
+      start: sql<Date>`
+        date_bin(
+          ${interval}::interval,
+          ${logs.timestamp},
+          TIMESTAMPTZ '2000-01-01'
+        )
+      `,
+      group: groupExpression,
+      count: sql<number>`COUNT(*)::int`,
+    })
+    .from(logs)
+    .where(
+      conditions.length > 0
+        ? and(...conditions)
+        : undefined,
+    )
+    .groupBy(
+      sql`
+        date_bin(
+          ${interval}::interval,
+          ${logs.timestamp},
+          TIMESTAMPTZ '2000-01-01'
+        )
+      `,
+      groupExpression,
+    )
+    .orderBy(
+      sql`
+        date_bin(
+          ${interval}::interval,
+          ${logs.timestamp},
+          TIMESTAMPTZ '2000-01-01'
+        ) ASC
+      `,
+      sql`${groupExpression} ASC NULLS FIRST`,
+    );
+}
+
+function decodeCursor(
+  cursor: string,
+): Cursor {
+  try {
+    const decoded = JSON.parse(
+      Buffer.from(cursor, "base64url").toString(
+        "utf8",
+      ),
+    );
+
+    if (
+      typeof decoded !== "object" ||
+      decoded === null ||
+      typeof decoded.timestamp !== "string" ||
+      typeof decoded.id !== "string"
+    ) {
+      throw new Error();
+    }
+
+    const timestamp = new Date(
+      decoded.timestamp,
+    );
+
+    if (Number.isNaN(timestamp.getTime())) {
+      throw new Error();
+    }
+
+    return {
+      timestamp: decoded.timestamp,
+      id: decoded.id,
+    };
+  } catch {
+    throw new Error("Invalid cursor");
+  }
+}
+
+function encodeCursor(
+  cursor: Cursor,
+): string {
+  return Buffer.from(
+    JSON.stringify(cursor),
+  ).toString("base64url");
+}
+
+function escapeLike(value: string): string {
+  return value.replace(
+    /[\\%_]/g,
+    "\\$&",
+  );
+}

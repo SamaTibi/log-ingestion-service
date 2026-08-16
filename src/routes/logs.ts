@@ -1,36 +1,32 @@
 import type { FastifyInstance } from "fastify";
 
-import { queryLogs } from "../services/log-query.service.js";
-import { ingestLogs } from "../services/log-ingestion.service.js";
-import { createLogSchema } from "../validation/log.js";
-import type { CreateLogInput } from "../validation/log.js";
-import type { LogLevel } from "../types/logs.js";
+import {
+  aggregateLogs,
+  queryLogs,
+} from "../services/log-query.service.js";
 
-export async function logsRoutes(app: FastifyInstance) {
-  /*
-   * POST /logs
-   *
-   * Expected body:
-   *
-   * {
-   *   "logs": [
-   *     {
-   *       "timestamp": "...",
-   *       "level": "info",
-   *       "service": "checkout",
-   *       "message": "payment declined",
-   *       "attributes": {}
-   *     }
-   *   ]
-   * }
-   */
+import {
+  ingestLogs,
+} from "../services/log-ingestion.service.js";
+
+import {
+  createLogSchema,
+} from "../validation/log.js";
+
+import type {
+  CreateLogInput,
+} from "../validation/log.js";
+
+import type {
+  LogLevel,
+} from "../types/logs.js";
+
+export async function logsRoutes(
+  app: FastifyInstance,
+) {
   app.post("/logs", async (request, reply) => {
     const body = request.body;
 
-    /*
-     * The specification requires the top-level
-     * structure to contain a "logs" array.
-     */
     if (
       body === null ||
       typeof body !== "object" ||
@@ -38,7 +34,8 @@ export async function logsRoutes(app: FastifyInstance) {
       !("logs" in body)
     ) {
       return reply.code(400).send({
-        error: "Request body must contain a logs array",
+        error:
+          "Request body must contain a logs array",
       });
     }
 
@@ -66,19 +63,22 @@ export async function logsRoutes(app: FastifyInstance) {
       reason: string;
     }> = [];
 
-    /*
-     * Validate every log independently.
-     *
-     * An invalid log must not cause the whole batch
-     * to fail.
-     */
-    for (let index = 0; index < rawLogs.length; index++) {
-      const result = createLogSchema.safeParse(rawLogs[index]);
+    for (
+      let index = 0;
+      index < rawLogs.length;
+      index++
+    ) {
+      const result =
+        createLogSchema.safeParse(
+          rawLogs[index],
+        );
 
       if (!result.success) {
         rejected.push({
           index,
-          reason: getValidationReason(result.error),
+          reason: getValidationReason(
+            result.error,
+          ),
         });
 
         continue;
@@ -99,14 +99,16 @@ export async function logsRoutes(app: FastifyInstance) {
       }>,
     };
 
-    /*
-     * Only send schema-valid logs to the ingestion service.
-     */
     if (validLogs.length > 0) {
       try {
-        ingestion = await ingestLogs(validLogs);
+        ingestion = await ingestLogs(
+          validLogs,
+        );
       } catch (error) {
-        request.log.error(error, "Failed to ingest logs");
+        request.log.error(
+          error,
+          "Failed to ingest logs",
+        );
 
         return reply.code(500).send({
           error: "Failed to ingest logs",
@@ -119,129 +121,68 @@ export async function logsRoutes(app: FastifyInstance) {
       ...ingestion.rejected,
     ];
 
-    /*
-     * The specification requires:
-     *
-     * 200 -> at least one accepted
-     * 400 -> all rejected
-     */
     if (ingestion.accepted === 0) {
       return reply.code(400).send({
+        total: rawLogs.length,
         accepted: 0,
         rejected: allRejected,
       });
     }
 
     return reply.code(200).send({
+      total: rawLogs.length,
       accepted: ingestion.accepted,
       rejected: allRejected,
     });
   });
 
-  /*
-   * GET /logs
-   */
   app.get("/logs", async (request, reply) => {
-    const query = request.query as Record<string, string | undefined>;
+    const query =
+      request.query as Record<
+        string,
+        string | undefined
+      >;
 
-    let since: Date | undefined;
-    let until: Date | undefined;
+    const dates =
+      parseDateFilters(query);
 
-    /*
-     * since
-     */
-    if (query.since !== undefined) {
-      since = new Date(query.since);
-
-      if (Number.isNaN(since.getTime())) {
-        return reply.code(400).send({
-          error: "Invalid since date",
-        });
-      }
-    }
-
-    /*
-     * until
-     */
-    if (query.until !== undefined) {
-      until = new Date(query.until);
-
-      if (Number.isNaN(until.getTime())) {
-        return reply.code(400).send({
-          error: "Invalid until date",
-        });
-      }
-    }
-
-    /*
-     * until must not be earlier than since.
-     */
-    if (since && until && until < since) {
+    if (dates.error) {
       return reply.code(400).send({
-        error: "until must be greater than or equal to since",
+        error: dates.error,
       });
     }
 
-    /*
-     * limit
-     */
-    let limit = 100;
+    const limit =
+      parseLimit(query.limit);
 
-    if (query.limit !== undefined) {
-      limit = Number(query.limit);
-
-      if (
-        !Number.isInteger(limit) ||
-        limit < 1 ||
-        limit > 1000
-      ) {
-        return reply.code(400).send({
-          error: "Invalid limit",
-        });
-      }
+    if (limit === null) {
+      return reply.code(400).send({
+        error: "Invalid limit",
+      });
     }
 
-    /*
-     * level
-     */
-    const validLevels: LogLevel[] = [
-      "debug",
-      "info",
-      "warn",
-      "error",
-    ];
+    const level =
+      parseLevel(query.level);
 
     if (
       query.level !== undefined &&
-      !validLevels.includes(query.level as LogLevel)
+      level === null
     ) {
       return reply.code(400).send({
         error: "Invalid level",
       });
     }
 
-    /*
-     * attr.*
-     */
-    const attributes: Record<string, string> = {};
-
-    for (const [key, value] of Object.entries(query)) {
-      if (key.startsWith("attr.") && value !== undefined) {
-        const attributeKey = key.slice(5);
-
-        if (attributeKey.length > 0) {
-          attributes[attributeKey] = value;
-        }
-      }
-    }
+    const attributes =
+      parseAttributes(query);
 
     try {
       return await queryLogs({
         limit,
         service: query.service,
-        level: query.level as LogLevel | undefined,
-        since,
-        until,
+        level: level ?? undefined,
+        since: dates.since,
+        until: dates.until,
         attributes,
         q: query.q,
         cursor: query.cursor,
@@ -259,28 +200,228 @@ export async function logsRoutes(app: FastifyInstance) {
       throw error;
     }
   });
+
+  app.get(
+    "/logs/aggregate",
+    async (request, reply) => {
+      const query =
+        request.query as Record<
+          string,
+          string | undefined
+        >;
+
+      const bucket = query.bucket;
+
+      if (
+        bucket !== "1m" &&
+        bucket !== "5m" &&
+        bucket !== "1h" &&
+        bucket !== "1d"
+      ) {
+        return reply.code(400).send({
+          error:
+            "bucket must be one of: 1m, 5m, 1h, 1d",
+        });
+      }
+
+      const groupBy =
+        query.group_by;
+
+      if (
+        groupBy !== undefined &&
+        groupBy !== "service" &&
+        groupBy !== "level"
+      ) {
+        return reply.code(400).send({
+          error:
+            "group_by must be service or level",
+        });
+      }
+
+      const dates =
+        parseDateFilters(query);
+
+      if (dates.error) {
+        return reply.code(400).send({
+          error: dates.error,
+        });
+      }
+
+      const level =
+        parseLevel(query.level);
+
+      if (
+        query.level !== undefined &&
+        level === null
+      ) {
+        return reply.code(400).send({
+          error: "Invalid level",
+        });
+      }
+
+      const attributes =
+        parseAttributes(query);
+
+      return aggregateLogs({
+        bucket,
+        groupBy:
+          groupBy as
+            | "service"
+            | "level"
+            | undefined,
+        service: query.service,
+        level: level ?? undefined,
+        since: dates.since,
+        until: dates.until,
+        q: query.q,
+        attributes,
+      });
+    },
+  );
 }
 
-/*
- * Convert Zod validation errors into a simple
- * rejection reason required by the API.
- */
-function getValidationReason(error: {
-  issues: Array<{
-    path: PropertyKey[];
-    message: string;
-    code: string;
-  }>;
-}): string {
+function parseLimit(
+  value: string | undefined,
+): number | null {
+  if (value === undefined) {
+    return 100;
+  }
+
+  const limit = Number(value);
+
+  if (
+    !Number.isInteger(limit) ||
+    limit < 1 ||
+    limit > 1000
+  ) {
+    return null;
+  }
+
+  return limit;
+}
+
+function parseLevel(
+  value: string | undefined,
+): LogLevel | null {
+  if (value === undefined) {
+    return null;
+  }
+
+  const levels: LogLevel[] = [
+    "debug",
+    "info",
+    "warn",
+    "error",
+  ];
+
+  return levels.includes(
+    value as LogLevel,
+  )
+    ? (value as LogLevel)
+    : null;
+}
+
+function parseDateFilters(
+  query: Record<
+    string,
+    string | undefined
+  >,
+) {
+  let since: Date | undefined;
+  let until: Date | undefined;
+
+  if (query.since !== undefined) {
+    since = new Date(query.since);
+
+    if (Number.isNaN(since.getTime())) {
+      return {
+        error: "Invalid since date",
+        since: undefined,
+        until: undefined,
+      };
+    }
+  }
+
+  if (query.until !== undefined) {
+    until = new Date(query.until);
+
+    if (Number.isNaN(until.getTime())) {
+      return {
+        error: "Invalid until date",
+        since,
+        until: undefined,
+      };
+    }
+  }
+
+  if (
+    since &&
+    until &&
+    until < since
+  ) {
+    return {
+      error:
+        "until must be greater than or equal to since",
+      since,
+      until,
+    };
+  }
+
+  return {
+    error: undefined,
+    since,
+    until,
+  };
+}
+
+function parseAttributes(
+  query: Record<
+    string,
+    string | undefined
+  >,
+): Record<string, string> {
+  const attributes: Record<
+    string,
+    string
+  > = {};
+
+  for (const [key, value] of Object.entries(
+    query,
+  )) {
+    if (
+      key.startsWith("attr.") &&
+      value !== undefined
+    ) {
+      const attributeKey =
+        key.slice(5);
+
+      if (attributeKey.length > 0) {
+        attributes[attributeKey] = value;
+      }
+    }
+  }
+
+  return attributes;
+}
+
+function getValidationReason(
+  error: {
+    issues: Array<{
+      path: PropertyKey[];
+      message: string;
+    }>;
+  },
+): string {
   const issue = error.issues[0];
 
   if (!issue) {
     return "Invalid log";
   }
 
-  const field = issue.path.length > 0
-    ? String(issue.path[0])
-    : "log";
+  const field =
+    issue.path.length > 0
+      ? String(issue.path[0])
+      : "log";
 
   switch (field) {
     case "timestamp":
@@ -296,9 +437,10 @@ function getValidationReason(error: {
       return "invalid message";
 
     case "attributes":
-      return "attributes must be a flat object with string, number, or boolean values";
+      return "invalid attributes";
 
     default:
       return `invalid ${field}`;
   }
 }
+

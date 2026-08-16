@@ -1,5 +1,8 @@
+import { sql } from "drizzle-orm";
+
 import { db } from "../db/client.js";
 import { logs } from "../db/schema.js";
+
 import type { CreateLogInput } from "../validation/log.js";
 import type { LogLevel } from "../types/logs.js";
 
@@ -29,34 +32,15 @@ export async function ingestLogs(
   const rejected: IngestResult["rejected"] = [];
   const validLogs: ValidLog[] = [];
 
-  /*
-   * Calculate the maximum allowed timestamp.
-   *
-   * We allow timestamps up to 5 minutes in the future.
-   *
-   * We add a small tolerance because the timestamp in the request
-   * may have been created a few milliseconds before this function
-   * runs. Without the tolerance, a timestamp created with exactly
-   * Date.now() + 5 minutes can sometimes be rejected.
-   */
   const now = Date.now();
-
   const FIVE_MINUTES = 5 * 60 * 1000;
-
-  // Small tolerance for execution-time differences.
-  const FUTURE_TIMESTAMP_TOLERANCE = 1000;
-
-  const maxFutureTimestamp =
-    now + FIVE_MINUTES + FUTURE_TIMESTAMP_TOLERANCE;
+  const maxFutureTimestamp = now + FIVE_MINUTES;
 
   for (const item of input) {
     const { index, log } = item;
 
     const timestamp = new Date(log.timestamp);
 
-    /*
-     * Reject logs that are more than 5 minutes in the future.
-     */
     if (timestamp.getTime() > maxFutureTimestamp) {
       rejected.push({
         index,
@@ -66,9 +50,6 @@ export async function ingestLogs(
       continue;
     }
 
-    /*
-     * This log is valid, so prepare it for insertion into PostgreSQL.
-     */
     validLogs.push({
       timestamp,
       level: log.level,
@@ -78,14 +59,38 @@ export async function ingestLogs(
     });
   }
 
-  /*
-   * Insert all valid logs in one database operation.
-   *
-   * Invalid logs are not inserted.
-   */
-  if (validLogs.length > 0) {
-    await db.insert(logs).values(validLogs);
+  if (validLogs.length === 0) {
+    return {
+      total: input.length,
+      accepted: 0,
+      rejected,
+    };
   }
+
+  const payload = JSON.stringify(validLogs);
+
+  await db.execute(sql`
+    INSERT INTO ${logs} (
+      "timestamp",
+      "level",
+      "service",
+      "message",
+      "attributes"
+    )
+    SELECT
+      timestamp,
+      level,
+      service,
+      message,
+      attributes
+    FROM jsonb_to_recordset(${payload}::jsonb) AS x(
+      timestamp timestamptz,
+      level text,
+      service text,
+      message text,
+      attributes jsonb
+    )
+  `);
 
   return {
     total: input.length,
