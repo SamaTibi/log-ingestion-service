@@ -4,69 +4,45 @@ import { queryLogs } from "../services/log-query.service.js";
 import { ingestLogs } from "../services/log-ingestion.service.js";
 import { createLogSchema } from "../validation/log.js";
 import type { CreateLogInput } from "../validation/log.js";
+import type { LogLevel } from "../types/logs.js";
 
 export async function logsRoutes(app: FastifyInstance) {
+  /*
+   * POST /logs
+   *
+   * Expected body:
+   *
+   * {
+   *   "logs": [
+   *     {
+   *       "timestamp": "...",
+   *       "level": "info",
+   *       "service": "checkout",
+   *       "message": "payment declined",
+   *       "attributes": {}
+   *     }
+   *   ]
+   * }
+   */
   app.post("/logs", async (request, reply) => {
     const body = request.body;
 
-    // Single log format
+    /*
+     * The specification requires the top-level
+     * structure to contain a "logs" array.
+     */
     if (
-      body !== null &&
-      typeof body === "object" &&
-      !Array.isArray(body) &&
+      body === null ||
+      typeof body !== "object" ||
+      Array.isArray(body) ||
       !("logs" in body)
     ) {
-      const result = createLogSchema.safeParse(body);
-
-      if (!result.success) {
-        return reply.code(400).send({
-          error: "Invalid request body",
-          details: result.error.flatten(),
-        });
-      }
-
-      const ingestion = await ingestLogs([result.data]);
-
-      if (ingestion.accepted === 0) {
-        return reply.code(400).send({
-          error: "Log rejected",
-          details: ingestion.rejected,
-        });
-      }
-
-      const log = result.data;
-
-      return reply.code(201).send({
-        timestamp: new Date(log.timestamp),
-        level: log.level,
-        service: log.service,
-        message: log.message,
-        attributes: log.attributes ?? {},
-      });
-    }
-
-    // Batch format:
-    // {
-    //   "logs": [...]
-    // }
-    //
-    // Also accept a raw array for compatibility.
-
-    let rawLogs: unknown;
-
-    if (Array.isArray(body)) {
-      rawLogs = body;
-    } else if (
-      body !== null &&
-      typeof body === "object" &&
-      "logs" in body
-    ) {
-      rawLogs = body.logs;
-    } else {
       return reply.code(400).send({
-        error: "Invalid request body",
+        error: "Request body must contain a logs array",
       });
     }
+
+    const rawLogs = body.logs;
 
     if (!Array.isArray(rawLogs)) {
       return reply.code(400).send({
@@ -80,49 +56,100 @@ export async function logsRoutes(app: FastifyInstance) {
       });
     }
 
-    const validLogs: CreateLogInput[] = [];
+    const validLogs: Array<{
+      index: number;
+      log: CreateLogInput;
+    }> = [];
 
     const rejected: Array<{
       index: number;
       reason: string;
-      details?: unknown;
     }> = [];
 
-    for (let i = 0; i < rawLogs.length; i++) {
-      const result = createLogSchema.safeParse(rawLogs[i]);
+    /*
+     * Validate every log independently.
+     *
+     * An invalid log must not cause the whole batch
+     * to fail.
+     */
+    for (let index = 0; index < rawLogs.length; index++) {
+      const result = createLogSchema.safeParse(rawLogs[index]);
 
       if (!result.success) {
         rejected.push({
-          index: i,
-          reason: "Invalid log",
-          details: result.error.flatten(),
+          index,
+          reason: getValidationReason(result.error),
         });
 
         continue;
       }
 
-      validLogs.push(result.data);
+      validLogs.push({
+        index,
+        log: result.data,
+      });
     }
 
-    const ingestion = await ingestLogs(validLogs);
+    let ingestion = {
+      total: validLogs.length,
+      accepted: 0,
+      rejected: [] as Array<{
+        index: number;
+        reason: string;
+      }>,
+    };
+
+    /*
+     * Only send schema-valid logs to the ingestion service.
+     */
+    if (validLogs.length > 0) {
+      try {
+        ingestion = await ingestLogs(validLogs);
+      } catch (error) {
+        request.log.error(error, "Failed to ingest logs");
+
+        return reply.code(500).send({
+          error: "Failed to ingest logs",
+        });
+      }
+    }
+
+    const allRejected = [
+      ...rejected,
+      ...ingestion.rejected,
+    ];
+
+    /*
+     * The specification requires:
+     *
+     * 200 -> at least one accepted
+     * 400 -> all rejected
+     */
+    if (ingestion.accepted === 0) {
+      return reply.code(400).send({
+        accepted: 0,
+        rejected: allRejected,
+      });
+    }
 
     return reply.code(200).send({
-      total: rawLogs.length,
       accepted: ingestion.accepted,
-      rejected: [
-        ...rejected,
-        ...ingestion.rejected,
-      ],
+      rejected: allRejected,
     });
   });
 
+  /*
+   * GET /logs
+   */
   app.get("/logs", async (request, reply) => {
     const query = request.query as Record<string, string | undefined>;
 
     let since: Date | undefined;
     let until: Date | undefined;
 
-    // since - inclusive
+    /*
+     * since
+     */
     if (query.since !== undefined) {
       since = new Date(query.since);
 
@@ -133,7 +160,9 @@ export async function logsRoutes(app: FastifyInstance) {
       }
     }
 
-    // until - exclusive
+    /*
+     * until
+     */
     if (query.until !== undefined) {
       until = new Date(query.until);
 
@@ -144,13 +173,18 @@ export async function logsRoutes(app: FastifyInstance) {
       }
     }
 
+    /*
+     * until must not be earlier than since.
+     */
     if (since && until && until < since) {
       return reply.code(400).send({
         error: "until must be greater than or equal to since",
       });
     }
 
-    // limit: default 100, maximum 1000
+    /*
+     * limit
+     */
     let limit = 100;
 
     if (query.limit !== undefined) {
@@ -167,7 +201,10 @@ export async function logsRoutes(app: FastifyInstance) {
       }
     }
 
-    const validLevels = [
+    /*
+     * level
+     */
+    const validLevels: LogLevel[] = [
       "debug",
       "info",
       "warn",
@@ -176,14 +213,16 @@ export async function logsRoutes(app: FastifyInstance) {
 
     if (
       query.level !== undefined &&
-      !validLevels.includes(query.level)
+      !validLevels.includes(query.level as LogLevel)
     ) {
       return reply.code(400).send({
         error: "Invalid level",
       });
     }
 
-    // Collect attr.<key> query parameters
+    /*
+     * attr.*
+     */
     const attributes: Record<string, string> = {};
 
     for (const [key, value] of Object.entries(query)) {
@@ -200,7 +239,7 @@ export async function logsRoutes(app: FastifyInstance) {
       return await queryLogs({
         limit,
         service: query.service,
-        level: query.level,
+        level: query.level as LogLevel | undefined,
         since,
         until,
         attributes,
@@ -220,4 +259,46 @@ export async function logsRoutes(app: FastifyInstance) {
       throw error;
     }
   });
+}
+
+/*
+ * Convert Zod validation errors into a simple
+ * rejection reason required by the API.
+ */
+function getValidationReason(error: {
+  issues: Array<{
+    path: PropertyKey[];
+    message: string;
+    code: string;
+  }>;
+}): string {
+  const issue = error.issues[0];
+
+  if (!issue) {
+    return "Invalid log";
+  }
+
+  const field = issue.path.length > 0
+    ? String(issue.path[0])
+    : "log";
+
+  switch (field) {
+    case "timestamp":
+      return "invalid timestamp";
+
+    case "level":
+      return "invalid level";
+
+    case "service":
+      return "invalid service";
+
+    case "message":
+      return "invalid message";
+
+    case "attributes":
+      return "attributes must be a flat object with string, number, or boolean values";
+
+    default:
+      return `invalid ${field}`;
+  }
 }
