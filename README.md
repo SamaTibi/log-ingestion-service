@@ -12,9 +12,10 @@ Designed for reliable structured-log ingestion, efficient querying, JSONB attrib
 
 ---
 
-**✨ Features**
+## ✨ Features
 
 * ⚡ High-throughput log ingestion
+* 📦 Batch log ingestion
 * 🗄️ PostgreSQL persistence
 * 🛡️ Zod request validation
 * 🔎 Service and log-level filtering
@@ -30,10 +31,12 @@ Designed for reliable structured-log ingestion, efficient querying, JSONB attrib
 * 🧪 Automated test suite
 * 📈 Built-in load-testing script
 * 📊 Measured performance benchmarks
+* ⏱️ Future timestamp validation
+* 🔀 Independent validation and rejection of logs inside batches
 
 ---
 
-**🧰 Tech Stack**
+## 🧰 Tech Stack
 
 | Technology         | Purpose                        |
 | ------------------ | ------------------------------ |
@@ -47,35 +50,35 @@ Designed for reliable structured-log ingestion, efficient querying, JSONB attrib
 
 ---
 
-**🚀 Quick Start**
+## 🚀 Quick Start
 
-**Requirements**
+### Requirements
 
 * Node.js 22+
 * npm
 * Docker Desktop or Docker Engine
 * Docker Compose
 
-**1. Clone the repository**
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/SamaTibi/log-ingestion-service.git
 cd log-ingestion-service
 ```
 
-**2. Install dependencies**
+### 2. Install dependencies
 
 ```bash
 npm install
 ```
 
-**3. Start PostgreSQL**
+### 3. Start PostgreSQL
 
 ```bash
 docker compose up -d postgres
 ```
 
-**4. Apply database migrations**
+### 4. Apply database migrations
 
 ```bash
 npm run migrate
@@ -87,7 +90,7 @@ The migration command runs:
 drizzle-kit migrate
 ```
 
-**5. Start the development server**
+### 5. Start the development server
 
 ```bash
 npm run dev
@@ -105,7 +108,7 @@ PostgreSQL:
 localhost:5432
 ```
 
-**Verify the database**
+### Verify the database
 
 ```bash
 docker compose exec postgres psql -U postgres -d logs -c "\dt"
@@ -121,7 +124,7 @@ You should see:
 
 ---
 
-**⚙️ Configuration**
+## ⚙️ Configuration
 
 The application uses environment variables for configuration.
 
@@ -141,7 +144,7 @@ RETENTION_DAYS=30
 
 ---
 
-**🏗️ Architecture**
+## 🏗️ Architecture
 
 ```text
                          ┌──────────────┐
@@ -187,7 +190,7 @@ The application is separated into clear layers:
 
 ---
 
-**📁 Project Structure**
+## 📁 Project Structure
 
 ```text
 log-ingestion-service/
@@ -240,7 +243,7 @@ log-ingestion-service/
 
 ---
 
-**📡 API**
+# 📡 API
 
 The service exposes two main endpoints:
 
@@ -251,67 +254,65 @@ GET  /logs
 
 ---
 
-**📝 Create a Single Log**
+# 📝 Create Logs
 
-`POST /logs`
+## POST `/logs`
+
+The API expects a top-level `logs` array.
+
+A single log is represented as an array containing one item.
 
 ```http
 POST /logs
 Content-Type: application/json
 ```
 
-Example:
+### Request
 
 ```json
 {
-  "timestamp": "2026-08-14T12:00:00.000Z",
-  "level": "error",
-  "service": "checkout",
-  "message": "Payment declined",
-  "attributes": {
-    "user_id": "42",
-    "environment": "production"
-  }
+  "logs": [
+    {
+      "timestamp": "2026-08-14T12:00:00.000Z",
+      "level": "error",
+      "service": "checkout",
+      "message": "Payment declined",
+      "attributes": {
+        "user_id": "42",
+        "environment": "production"
+      }
+    }
+  ]
 }
 ```
 
-Successful response:
+### Successful response
 
 ```http
-201 Created
+200 OK
 ```
 
 ```json
 {
-  "timestamp": "2026-08-14T12:00:00.000Z",
-  "level": "error",
-  "service": "checkout",
-  "message": "Payment declined",
-  "attributes": {
-    "user_id": "42",
-    "environment": "production"
-  }
+  "accepted": 1,
+  "rejected": []
 }
 ```
 
-Invalid requests return:
-
-```http
-400 Bad Request
-```
+The API processes logs independently.
 
 ---
 
-**📦 Batch Log Ingestion**
+# 📦 Batch Log Ingestion
 
-The API also supports batch ingestion.
+Multiple logs can be submitted in one request.
 
 ```http
 POST /logs
 Content-Type: application/json
 ```
 
-Request:
+### Request
 
 ```json
 {
@@ -338,38 +339,116 @@ Request:
 }
 ```
 
-The API processes each log independently.
+### Successful response
 
-A batch response contains:
+```http
+200 OK
+```
 
 ```json
 {
-  "total": 2,
   "accepted": 2,
   "rejected": []
 }
 ```
 
-Invalid or future-dated logs are rejected without preventing valid logs in the same batch from being stored.
+Each log is validated independently.
 
-A raw array is also accepted for compatibility:
+For example, if one log is invalid and another is valid:
 
 ```json
-[
-  {
-    "timestamp": "2026-08-14T12:00:00.000Z",
-    "level": "info",
-    "service": "checkout",
-    "message": "Payment started"
-  }
-]
+{
+  "accepted": 1,
+  "rejected": [
+    {
+      "index": 0,
+      "reason": "..."
+    }
+  ]
+}
+```
+
+The valid log is still stored.
+
+If every log in the request is rejected, the API returns:
+
+```http
+400 Bad Request
+```
+
+Example:
+
+```json
+{
+  "accepted": 0,
+  "rejected": [
+    {
+      "index": 0,
+      "reason": "..."
+    }
+  ]
+}
 ```
 
 ---
 
-**🔎 Query Logs**
+## ⏱️ Future Timestamp Validation
 
-`GET /logs`
+Logs are allowed to have timestamps up to **5 minutes in the future**.
+
+Logs that are more than 5 minutes in the future are rejected.
+
+Example:
+
+```json
+{
+  "index": 0,
+  "reason": "timestamp cannot be more than 5 minutes in the future"
+}
+```
+
+Future-dated logs are rejected independently without preventing valid logs in the same batch from being stored.
+
+---
+
+## 🛡️ Request Validation
+
+Every incoming log is validated with Zod before persistence.
+
+Invalid logs are rejected individually.
+
+The API validates:
+
+* Timestamp
+* Log level
+* Service
+* Message
+* Attributes
+
+Supported log levels are:
+
+```text
+debug
+info
+warn
+error
+```
+
+The top-level request must contain a `logs` array.
+
+Invalid request structures return:
+
+```http
+400 Bad Request
+```
+
+---
+
+# 🔎 Query Logs
+
+## GET `/logs`
+
+The endpoint supports filtering, searching, and cursor-based pagination.
 
 Results are ordered deterministically by:
 
@@ -380,7 +459,7 @@ id DESC
 
 ---
 
-**🎯 Service Filtering**
+## 🎯 Service Filtering
 
 ```text
 GET /logs?service=checkout
@@ -390,7 +469,7 @@ Performs exact service matching.
 
 ---
 
-**🚦 Level Filtering**
+## 🚦 Level Filtering
 
 ```text
 GET /logs?level=error
@@ -407,9 +486,11 @@ error
 
 ---
 
-**🕐 Time Range Filtering**
+## 🕐 Time Range Filtering
 
-`since` is inclusive:
+### `since`
+
+`since` is inclusive.
 
 ```text
 GET /logs?since=2026-08-14T12:00:00Z
@@ -417,13 +498,17 @@ GET /logs?since=2026-08-14T12:00:00Z
 
 Logs at exactly the `since` timestamp are included.
 
-`until` is exclusive:
+### `until`
+
+`until` is exclusive.
 
 ```text
 GET /logs?until=2026-08-14T13:00:00Z
 ```
 
 Logs at exactly the `until` timestamp are excluded.
+
+### Combined
 
 Both can be combined:
 
@@ -433,9 +518,9 @@ GET /logs?since=2026-08-14T12:00:00Z&until=2026-08-14T13:00:00Z
 
 ---
 
-**🔤 Message Search**
+# 🔤 Message Search
 
-Use `q` for case-insensitive substring matching:
+Use `q` for case-insensitive substring matching.
 
 ```text
 GET /logs?q=declined
@@ -449,7 +534,7 @@ GET /logs?service=checkout&q=payment
 
 ---
 
-**🧩 Attribute Filtering**
+# 🧩 Attribute Filtering
 
 Attributes are stored as PostgreSQL JSONB.
 
@@ -467,7 +552,7 @@ GET /logs?attr.user_id=42&attr.environment=production
 
 ---
 
-**🔗 Combined Filters**
+# 🔗 Combined Filters
 
 All supported filters can be combined.
 
@@ -479,7 +564,7 @@ Filters are combined using `AND`.
 
 ---
 
-**📄 Cursor Pagination**
+# 📄 Cursor Pagination
 
 The API uses cursor-based pagination instead of large SQL offsets.
 
@@ -514,7 +599,7 @@ pair from the previous page.
 
 This provides deterministic pagination and avoids the scalability problems associated with large SQL offsets.
 
-**Pagination limits**
+## Pagination Limits
 
 | Setting |  Value |
 | ------- | -----: |
@@ -524,7 +609,7 @@ This provides deterministic pagination and avoids the scalability problems assoc
 
 ---
 
-**🗄️ Database**
+# 🗄️ Database
 
 The main `logs` table contains:
 
@@ -538,7 +623,7 @@ The main `logs` table contains:
 | `attributes` | jsonb       | Structured metadata |
 | `created_at` | timestamptz | Insert timestamp    |
 
-**Indexes**
+## Indexes
 
 ```text
 logs_timestamp_idx
@@ -550,7 +635,7 @@ The timestamp index supports time-based queries, while service and level indexes
 
 ---
 
-**🛡️ Validation & Security**
+# 🛡️ Validation & Security
 
 Incoming requests are validated with Zod before persistence.
 
@@ -558,7 +643,7 @@ The API rejects:
 
 * Invalid request bodies
 * Invalid timestamps
-* Future timestamps
+* Timestamps more than 5 minutes in the future
 * Invalid `since` / `until` values
 * Invalid limits
 * Unsupported log levels
@@ -572,12 +657,18 @@ Dynamic JSONB attribute filters are also parameterized.
 
 ---
 
-**🧪 Testing**
+# 🧪 Testing
 
 Typecheck:
 
 ```bash
 npm run typecheck
+```
+
+Build:
+
+```bash
+npm run build
 ```
 
 Run the complete test suite:
@@ -586,7 +677,7 @@ Run the complete test suite:
 npm run test:run
 ```
 
-Current result:
+Current verified result:
 
 ```text
 Test Files  3 passed
@@ -597,11 +688,12 @@ The test suite covers:
 
 * Database connectivity
 * Health endpoint
-* Single log creation
-* Batch ingestion
+* Single-log batch creation
+* Multiple valid logs
 * Invalid input
 * Future timestamps
 * Independent log rejection
+* Large batches
 * Service filtering
 * Level filtering
 * `since`
@@ -615,7 +707,7 @@ The test suite covers:
 
 ---
 
-**📊 Load Testing**
+# 📊 Load Testing
 
 A custom load generator is included:
 
@@ -637,6 +729,13 @@ $env:CONCURRENCY="100"
 npm run load:test
 ```
 
+Optional batch configuration:
+
+```powershell
+$env:BATCH_SIZE="100"
+npm run load:test
+```
+
 Results are written to:
 
 ```text
@@ -647,11 +746,11 @@ The result directory is ignored by Git because benchmark output is generated loc
 
 ---
 
-**📈 Measured Performance**
+# 📈 Measured Performance
 
 > These are measured local benchmarks, not theoretical estimates.
 
-**Best recorded result**
+## Best Recorded Result
 
 | Metric      |           Result |
 | ----------- | ---------------: |
@@ -666,20 +765,20 @@ The result directory is ignored by Git because benchmark output is generated loc
 | p99         |       `72.28 ms` |
 | Max         |      `473.06 ms` |
 
-**Concurrency comparison**
+## Concurrency Comparison
 
 | Concurrency |  Throughput |    p50 |    p95 |    p99 | Failed |
 | ----------: | ----------: | -----: | -----: | -----: | -----: |
-|         100 | **2,473/s** |  38 ms |  55 ms |  72 ms |      0 |
-|         250 |     2,106/s | 114 ms | 146 ms | 173 ms |      0 |
-|         500 |     2,169/s | 222 ms | 261 ms | 312 ms |      0 |
-|        1000 |     1,964/s | 489 ms | 550 ms | 778 ms |      0 |
+|       `100` | **2,473/s** |  38 ms |  55 ms |  72 ms |      0 |
+|       `250` |     2,106/s | 114 ms | 146 ms | 173 ms |      0 |
+|       `500` |     2,169/s | 222 ms | 261 ms | 312 ms |      0 |
+|      `1000` |     1,964/s | 489 ms | 550 ms | 778 ms |      0 |
 
 The results show that increasing concurrency beyond approximately 100 increases latency without providing a corresponding throughput improvement.
 
 ---
 
-**🖥️ Resource Usage**
+# 🖥️ Resource Usage
 
 Observed during sustained ingestion:
 
@@ -694,7 +793,7 @@ This indicates that application CPU/memory pressure and per-request database ove
 
 ---
 
-**📦 Data Volume**
+# 📦 Data Volume
 
 During testing, the database reached approximately:
 
@@ -706,7 +805,7 @@ The database remained operational and queryable during the ingestion experiments
 
 ---
 
-**🎯 Performance Requirements**
+# 🎯 Performance Requirements
 
 The target evaluation environment specifies:
 
@@ -720,7 +819,7 @@ The target evaluation environment specifies:
 | Newly ingested data visibility |         <20 s |
 | Aggregation frequency          |     1 query/s |
 
-**Current measured status**
+## Current Measured Status
 
 The current local benchmark reached:
 
@@ -741,7 +840,7 @@ Performance results are documented based on actual measurements rather than assu
 
 ---
 
-**⚡ Optimizations Implemented**
+# ⚡ Optimizations Implemented
 
 The current implementation includes:
 
@@ -757,13 +856,14 @@ The current implementation includes:
 * Request validation
 * Batch ingestion support
 * Independent batch-log rejection
+* Future timestamp validation
 * Automated database migrations
 * PostgreSQL connection timeout configuration
 * PostgreSQL idle connection timeout configuration
 
 ---
 
-**🔍 Bottlenecks Discovered**
+# 🔍 Bottlenecks Discovered
 
 Load testing identified several bottlenecks:
 
@@ -778,7 +878,7 @@ The most promising next optimization is reducing per-request overhead through la
 
 ---
 
-**🐳 Docker**
+# 🐳 Docker
 
 Start the complete stack:
 
@@ -818,7 +918,7 @@ docker compose exec postgres psql -U postgres -d logs -c "SELECT COUNT(*) FROM l
 
 ---
 
-**💻 Local Development**
+# 💻 Local Development
 
 Install dependencies:
 
@@ -864,39 +964,43 @@ npm run migrate
 
 ---
 
-**🧠 Design Decisions**
+# 🧠 Design Decisions
 
-**PostgreSQL**
+## PostgreSQL
 
 PostgreSQL provides reliable persistence, indexing, JSONB support, and efficient time-based querying.
 
-**JSONB**
+## JSONB
 
 Log attributes are stored as JSONB because different services may produce different metadata.
 
-**Cursor Pagination**
+## Cursor Pagination
 
 Pagination uses `(timestamp, id)` instead of large offsets, providing deterministic ordering and better scalability.
 
-**Service Layer**
+## Service Layer
 
 Query and ingestion logic are separated from Fastify handlers to keep HTTP concerns independent from database operations.
 
-**Zod Validation**
+## Zod Validation
 
 Incoming data is validated before it reaches the persistence layer.
 
-**Parameterized Queries**
+## Parameterized Queries
 
 User-controlled values are passed through parameterized database operations to reduce SQL injection risk.
 
-**Batch Ingestion**
+## Batch Ingestion
 
 Batch requests allow multiple logs to be processed in one HTTP request while still allowing individual invalid logs to be rejected independently.
 
+## Independent Rejection
+
+Each log in a batch is validated independently. A rejected log does not prevent valid logs from being persisted.
+
 ---
 
-**⚠️ Known Limitations**
+# ⚠️ Known Limitations
 
 The following areas require additional optimization or benchmarking:
 
@@ -912,9 +1016,9 @@ These limitations are documented explicitly rather than presenting unmeasured pe
 
 ---
 
-**📌 Summary**
+# 📌 Summary
 
-The Log Ingestion Service provides a complete structured-log ingestion and query API with:
+The Log Ingestion Service provides a structured-log ingestion and query API with:
 
 **Reliable ingestion · Batch processing · PostgreSQL persistence · JSONB attributes · Filtering · Search · Cursor pagination · Validation · Docker deployment · Database migrations · Automated tests · Load testing**
 
