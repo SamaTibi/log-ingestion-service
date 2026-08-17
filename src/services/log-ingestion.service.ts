@@ -44,7 +44,8 @@ export async function ingestLogs(
     if (timestamp.getTime() > maxFutureTimestamp) {
       rejected.push({
         index,
-        reason: "timestamp cannot be more than 5 minutes in the future",
+        reason:
+          "timestamp cannot be more than 5 minutes in the future",
       });
 
       continue;
@@ -70,7 +71,7 @@ export async function ingestLogs(
   const payload = JSON.stringify(validLogs);
 
   await db.execute(sql`
-    INSERT INTO ${logs} (
+    INSERT INTO logs (
       "timestamp",
       "level",
       "service",
@@ -78,12 +79,14 @@ export async function ingestLogs(
       "attributes"
     )
     SELECT
-      timestamp,
-      level,
-      service,
-      message,
-      attributes
-    FROM jsonb_to_recordset(${payload}::jsonb) AS x(
+      x.timestamp,
+      x.level,
+      x.service,
+      x.message,
+      x.attributes
+    FROM jsonb_to_recordset(
+      ${payload}::jsonb
+    ) AS x(
       timestamp timestamptz,
       level text,
       service text,

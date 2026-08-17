@@ -1,39 +1,41 @@
+Here's the updated README with the Docker commands and database section added:
+
+---
+
 # Log Ingestion Service
 
 A simple backend service for **storing, querying, and filtering application logs**.
 
-Built with **TypeScript, Fastify, PostgreSQL, Drizzle ORM, and Vitest**.
+Built with **TypeScript, Fastify, PostgreSQL, Drizzle ORM, Docker, Docker Compose, and Vitest**.
 
 ---
 
 ## 🚀 Features
 
-* 📥 Ingest logs using `POST /logs`
-* 🔎 Query logs using `GET /logs`
-* 🎯 Filter logs by:
-
-  * Service
-  * Log level
-  * Time range
-  * Message content
-  * Attributes
-* 📄 Pagination using `limit` and cursor
-* ✅ Validation for invalid log data
-* 🗑️ Configurable log retention
-* 🧪 Automated tests with Vitest
-* 🗄️ PostgreSQL database with Drizzle ORM
+- 📥 Ingest logs using `POST /logs`
+- 🔎 Query logs using `GET /logs`
+- 🎯 Filter logs by service, level, time range, message, and attributes
+- 📄 Cursor-based pagination
+- 📦 Batch log ingestion
+- ✅ Validation for invalid log data
+- 🗑️ Configurable log retention
+- 🩺 Health check endpoint
+- 🧪 Automated tests with Vitest
+- 🐳 Docker and Docker Compose support
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Technology      | Purpose                               |
-| --------------- | ------------------------------------- |
-| **TypeScript**  | Application development               |
-| **Fastify**     | HTTP server and API                   |
-| **PostgreSQL**  | Database                              |
-| **Drizzle ORM** | Database access and schema management |
-| **Vitest**      | Testing                               |
+| Technology | Purpose |
+|---|---|
+| TypeScript | Application development |
+| Fastify | HTTP server and API |
+| PostgreSQL | Database |
+| Drizzle ORM | Database access and schema management |
+| Vitest | Automated testing |
+| Docker | Application containerization |
+| Docker Compose | Application and database orchestration |
 
 ---
 
@@ -48,65 +50,128 @@ log-ingestion-service/
 │   ├── types/
 │   ├── validation/
 │   └── server.ts
-│
 ├── tests/
 │   ├── database.test.ts
 │   ├── health.test.ts
 │   └── logs.test.ts
-│
-├── .env
+├── docker-compose.yml
+├── Dockerfile
+├── .env.example
 ├── drizzle.config.ts
 ├── package.json
-├── tsconfig.json
-└── README.md
+└── tsconfig.json
 ```
 
 ---
 
-## ⚙️ Setup
+## 🐳 Running with Docker Compose
 
-### 1. Clone the repository
+1. Clone the repository
 
 ```bash
 git clone https://github.com/SamaTibi/log-ingestion-service.git
 cd log-ingestion-service
 ```
 
-### 2. Install dependencies
+2. Create the environment file
 
 ```bash
-npm install
+cp .env.example .env
 ```
 
-### 3. Configure environment variables
-
-Create a `.env` file:
+Configure the `.env` file:
 
 ```env
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/logs
+DATABASE_URL=postgresql://postgres:postgres@postgres:5432/logs
 PORT=8080
 RETENTION_DAYS=30
 AUTH_ENABLED=false
 ```
 
-### 4. Setup the database
-
-Run the database migration/schema command:
+3. Build and start the services
 
 ```bash
-npm run db:push
+docker compose up --build
 ```
 
-### 5. Start the development server
+The API will be available at: `http://localhost:8080`
+
+4. Run in detached mode
 
 ```bash
-npm run dev
+docker compose up -d --build
 ```
 
-The API will be available at:
+---
 
-```text
-http://localhost:8080
+## 🐳 Docker Commands
+
+### Build
+```bash
+docker compose build                 # Build the application image
+docker compose build --no-cache app  # Build without cache
+```
+
+### Start
+```bash
+docker compose up -d                 # Start services in background
+docker compose up -d --build         # Rebuild and start
+```
+
+### Monitor
+```bash
+docker compose ps                    # Check running containers
+docker compose logs app              # View application logs
+docker compose logs -f app           # Follow application logs
+```
+
+### Stop
+```bash
+docker compose down                  # Stop services
+docker compose down -v               # Stop services and remove database data
+```
+
+---
+
+## 🗄️ Database
+
+PostgreSQL is automatically started by Docker Compose.
+
+To connect to the PostgreSQL database:
+
+```bash
+docker compose exec postgres psql -U postgres -d logs
+```
+
+Example queries:
+
+```sql
+-- Count total logs
+SELECT count(*) FROM logs;
+
+-- View recent logs
+SELECT * FROM logs ORDER BY created_at DESC LIMIT 5;
+
+-- Filter by service
+SELECT * FROM logs WHERE service = 'checkout';
+
+-- Count logs by level
+SELECT level, count(*) FROM logs GROUP BY level;
+```
+
+---
+
+## 🩺 Health Check
+
+```bash
+curl http://localhost:8080/health
+```
+
+Response:
+```json
+{
+  "status": "ok"
+}
 ```
 
 ---
@@ -114,10 +179,7 @@ http://localhost:8080
 ## 📡 API
 
 ### Add Logs
-
-**POST `/logs`**
-
-Request:
+**POST** `/logs`
 
 ```json
 {
@@ -127,128 +189,62 @@ Request:
       "level": "info",
       "service": "checkout",
       "message": "Order created",
-      "attributes": {
-        "user_id": 42
-      }
+      "attributes": { "user_id": 42 }
     }
   ]
 }
 ```
 
-The endpoint validates each log and processes valid and invalid entries independently.
-
----
-
 ### Get Logs
+**GET** `/logs`
 
-**GET `/logs`**
-
-Retrieve stored logs with optional filters.
-
-#### Filter by service
-
-```http
+```bash
 GET /logs?service=checkout
-```
-
-#### Filter by level
-
-```http
 GET /logs?level=error
-```
-
-#### Search by message
-
-```http
 GET /logs?q=declined
-```
-
-#### Limit results
-
-```http
+GET /logs?since=2026-08-14T13:00:00Z
+GET /logs?until=2026-08-14T15:00:00Z
 GET /logs?limit=10
-```
-
-#### Combine filters
-
-```http
 GET /logs?service=checkout&level=error
 ```
 
----
+### Supported Filters
 
-## 🔍 Supported Filters
-
-| Parameter    | Description                                   |
-| ------------ | --------------------------------------------- |
-| `service`    | Filter logs by service name                   |
-| `level`      | Filter by `debug`, `info`, `warn`, or `error` |
-| `since`      | Return logs after a specific timestamp        |
-| `until`      | Return logs before a specific timestamp       |
-| `q`          | Search log messages                           |
-| `attributes` | Filter using log attributes                   |
-| `limit`      | Number of logs to return                      |
-| `cursor`     | Cursor for pagination                         |
+| Parameter | Description |
+|-----------|-------------|
+| `service` | Filter by service name |
+| `level` | Filter by log level |
+| `since` | Logs after timestamp |
+| `until` | Logs before timestamp |
+| `q` | Search in message |
+| `attr.*` | Filter by attributes |
+| `limit` | Number of results (max 100) |
+| `cursor` | Pagination cursor |
 
 ---
 
 ## 🧪 Testing
 
-Run the complete test suite:
-
 ```bash
 npm test
 ```
 
-### Test Results
-
-```text
+Results:
+```
 Test Files  3 passed (3)
 Tests       38 passed (38)
 ```
 
-The test suite covers:
-
-* Database functionality
-* Health endpoint
-* Log ingestion
-* Validation
-* Batch processing
-* Log querying
-* Filtering
-* Pagination
-
 ---
 
-## 🏗️ Build
+## 🔧 Local Development (Without Docker)
 
-Create the production build with:
-
+1. Install dependencies
 ```bash
-npm run build
+npm install
 ```
 
-Start the compiled application with:
-
-```bash
-npm start
-```
-
----
-
-## 📌 API Overview
-
-| Method | Endpoint | Description             |
-| ------ | -------- | ----------------------- |
-| `POST` | `/logs`  | Ingest application logs |
-| `GET`  | `/logs`  | Query and filter logs   |
-
----
-
-## 🔐 Configuration
-
-The service supports environment-based configuration:
-
+2. Configure `.env`
 ```env
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/logs
 PORT=8080
@@ -256,12 +252,21 @@ RETENTION_DAYS=30
 AUTH_ENABLED=false
 ```
 
-| Variable         | Description                   | Example            |
-| ---------------- | ----------------------------- | ------------------ |
-| `DATABASE_URL`   | PostgreSQL connection string  | `postgresql://...` |
-| `PORT`           | Server port                   | `8080`             |
-| `RETENTION_DAYS` | Log retention period          | `30`               |
-| `AUTH_ENABLED`   | Enable/disable authentication | `false`            |
+3. Start the development server
+```bash
+npm run dev
+```
+
+---
+
+## ⚙️ Configuration
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection string | Required |
+| `PORT` | Server port | `8080` |
+| `RETENTION_DAYS` | Log retention period | `30` |
+| `AUTH_ENABLED` | Enable authentication | `false` |
 
 ---
 
