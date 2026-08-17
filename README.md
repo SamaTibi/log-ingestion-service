@@ -150,7 +150,7 @@ Example queries:
 SELECT count(*) FROM logs;
 
 -- View recent logs
-SELECT * FROM logs ORDER BY created_at DESC LIMIT 5;
+SELECT * FROM logs ORDER BY timestamp DESC LIMIT 5;
 
 -- Filter by service
 SELECT * FROM logs WHERE service = 'checkout';

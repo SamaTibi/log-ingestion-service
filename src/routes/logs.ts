@@ -197,7 +197,14 @@ export async function logsRoutes(
         });
       }
 
-      throw error;
+      request.log.error(
+        error,
+        "Failed to query logs",
+      );
+
+      return reply.code(500).send({
+        error: "Failed to query logs",
+      });
     }
   });
 
@@ -262,20 +269,31 @@ export async function logsRoutes(
       const attributes =
         parseAttributes(query);
 
-      return aggregateLogs({
-        bucket,
-        groupBy:
-          groupBy as
-            | "service"
-            | "level"
-            | undefined,
-        service: query.service,
-        level: level ?? undefined,
-        since: dates.since,
-        until: dates.until,
-        q: query.q,
-        attributes,
-      });
+      try {
+        return await aggregateLogs({
+          bucket,
+          groupBy:
+            groupBy as
+              | "service"
+              | "level"
+              | undefined,
+          service: query.service,
+          level: level ?? undefined,
+          since: dates.since,
+          until: dates.until,
+          q: query.q,
+          attributes,
+        });
+      } catch (error) {
+        request.log.error(
+          error,
+          "Failed to aggregate logs",
+        );
+
+        return reply.code(500).send({
+          error: "Failed to aggregate logs",
+        });
+      }
     },
   );
 }
@@ -443,4 +461,3 @@ function getValidationReason(
       return `invalid ${field}`;
   }
 }
-

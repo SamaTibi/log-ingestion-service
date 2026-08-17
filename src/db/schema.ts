@@ -1,12 +1,20 @@
 import {
-  pgTable,
-  uuid,
-  timestamp,
-  varchar,
-  text,
-  jsonb,
   index,
+  jsonb,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
 } from "drizzle-orm/pg-core";
+
+export const logLevelEnum =
+  pgEnum("log_level", [
+    "debug",
+    "info",
+    "warn",
+    "error",
+  ]);
 
 export const logs = pgTable(
   "logs",
@@ -15,57 +23,55 @@ export const logs = pgTable(
       .defaultRandom()
       .primaryKey(),
 
-    timestamp: timestamp("timestamp", {
-      withTimezone: true,
-    }).notNull(),
+    timestamp: timestamp(
+      "timestamp",
+      {
+        withTimezone: true,
+      },
+    ).notNull(),
 
-    level: varchar("level", {
-      length: 20,
-    }).notNull(),
+    level: logLevelEnum(
+      "level",
+    ).notNull(),
 
-    service: varchar("service", {
-      length: 100,
-    }).notNull(),
+    service: text(
+      "service",
+    ).notNull(),
 
-    message: text("message").notNull(),
+    message: text(
+      "message",
+    ).notNull(),
 
-    attributes: jsonb("attributes")
+    attributes: jsonb(
+      "attributes",
+    )
+      .$type<
+        Record<
+          string,
+          string | number | boolean
+        >
+      >()
       .notNull()
       .default({}),
-
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-    })
-      .defaultNow()
-      .notNull(),
   },
+  (table) => ({
+    timestampIdx: index(
+      "logs_timestamp_idx",
+    ).on(table.timestamp),
 
-  (table) => [
-    index("logs_timestamp_idx")
-      .on(table.timestamp),
+    timestampIdIdx: index(
+      "logs_timestamp_id_idx",
+    ).on(
+      table.timestamp,
+      table.id,
+    ),
 
-    index("logs_timestamp_id_idx")
-      .on(
-        table.timestamp,
-        table.id,
-      ),
+    serviceIdx: index(
+      "logs_service_idx",
+    ).on(table.service),
 
-    index("logs_service_idx")
-      .on(table.service),
-
-    index("logs_level_idx")
-      .on(table.level),
-
-    index("logs_service_timestamp_idx")
-      .on(
-        table.service,
-        table.timestamp,
-      ),
-
-    index("logs_level_timestamp_idx")
-      .on(
-        table.level,
-        table.timestamp,
-      ),
-  ],
+    levelIdx: index(
+      "logs_level_idx",
+    ).on(table.level),
+  }),
 );

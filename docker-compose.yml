@@ -2,26 +2,46 @@ services:
   postgres:
     image: postgres:17
     restart: unless-stopped
+
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: logs
+
     ports:
       - "5432:5432"
+
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U postgres -d logs"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+
     restart: unless-stopped
+
     ports:
       - "8080:8080"
+
     environment:
       DATABASE_URL: postgres://postgres:postgres@postgres:5432/logs
       PORT: 8080
       RETENTION_DAYS: 30
+
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
 
 volumes:
   postgres_data:

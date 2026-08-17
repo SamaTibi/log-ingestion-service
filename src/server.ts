@@ -1,10 +1,8 @@
 import "dotenv/config";
 
-import { app } from "./app.js";
-import { retentionTimer } from "./app.js";
+import { app, retentionTimer } from "./app.js";
 
-const port =
-  Number(process.env.PORT) || 8080;
+const port = Number(process.env.PORT) || 8080;
 
 try {
   await app.listen({

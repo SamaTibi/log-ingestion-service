@@ -11,11 +11,12 @@ import {
 
 import { db } from "../db/client.js";
 import { logs } from "../db/schema.js";
+import type { LogLevel } from "../types/logs.js";
 
 export interface QueryLogsOptions {
   limit?: number;
   service?: string;
-  level?: string;
+  level?: LogLevel;
   since?: Date;
   until?: Date;
   attributes?: Record<string, string>;
@@ -27,13 +28,12 @@ export interface AggregateLogsOptions {
   bucket: "1m" | "5m" | "1h" | "1d";
   groupBy?: "service" | "level";
   service?: string;
-  level?: string;
+  level?: LogLevel;
   since?: Date;
   until?: Date;
   q?: string;
   attributes?: Record<string, string>;
 }
-
 interface Cursor {
   timestamp: string;
   id: string;
@@ -75,7 +75,10 @@ export async function queryLogs(
 
   if (options.q) {
     conditions.push(
-      ilike(logs.message, `%${escapeLike(options.q)}%`),
+      ilike(
+        logs.message,
+        `%${escapeLike(options.q)}%`,
+      ),
     );
   }
 
@@ -92,27 +95,29 @@ export async function queryLogs(
   }
 
   if (options.cursor) {
-    const cursor = decodeCursor(options.cursor);
+    const cursor =
+      decodeCursor(options.cursor);
 
-    const cursorTimestamp = new Date(
-      cursor.timestamp,
-    );
+    const cursorTimestamp =
+      new Date(cursor.timestamp);
 
     conditions.push(
       or(
-        lt(logs.timestamp, cursorTimestamp),
+        lt(
+          logs.timestamp,
+          cursorTimestamp,
+        ),
         and(
-          eq(logs.timestamp, cursorTimestamp),
+          eq(
+            logs.timestamp,
+            cursorTimestamp,
+          ),
           lt(logs.id, cursor.id),
         ),
       ),
     );
   }
 
-  /*
-   * Fetch one extra row so we can determine whether
-   * another page exists.
-   */
   const rows = await db
     .select()
     .from(logs)
@@ -127,7 +132,8 @@ export async function queryLogs(
     )
     .limit(limit + 1);
 
-  const hasMore = rows.length > limit;
+  const hasMore =
+    rows.length > limit;
 
   const resultLogs = hasMore
     ? rows.slice(0, limit)
@@ -135,12 +141,16 @@ export async function queryLogs(
 
   let nextCursor: string | null = null;
 
-  if (hasMore && resultLogs.length > 0) {
+  if (
+    hasMore &&
+    resultLogs.length > 0
+  ) {
     const last =
       resultLogs[resultLogs.length - 1];
 
     nextCursor = encodeCursor({
-      timestamp: last.timestamp.toISOString(),
+      timestamp:
+        last.timestamp.toISOString(),
       id: last.id,
     });
   }
@@ -161,7 +171,8 @@ export async function aggregateLogs(
     "1d": "1 day",
   } as const;
 
-  const interval = intervals[options.bucket];
+  const interval =
+    intervals[options.bucket];
 
   const conditions = [];
 
@@ -191,7 +202,10 @@ export async function aggregateLogs(
 
   if (options.q) {
     conditions.push(
-      ilike(logs.message, `%${escapeLike(options.q)}%`),
+      ilike(
+        logs.message,
+        `%${escapeLike(options.q)}%`,
+      ),
     );
   }
 
@@ -207,14 +221,21 @@ export async function aggregateLogs(
     }
   }
 
-  let groupExpression = sql`NULL`;
+  let groupExpression =
+    sql`NULL`;
 
-  if (options.groupBy === "service") {
-    groupExpression = sql`${logs.service}`;
+  if (
+    options.groupBy === "service"
+  ) {
+    groupExpression =
+      sql`${logs.service}`;
   }
 
-  if (options.groupBy === "level") {
-    groupExpression = sql`${logs.level}`;
+  if (
+    options.groupBy === "level"
+  ) {
+    groupExpression =
+      sql`${logs.level}`;
   }
 
   return db
@@ -262,25 +283,31 @@ function decodeCursor(
 ): Cursor {
   try {
     const decoded = JSON.parse(
-      Buffer.from(cursor, "base64url").toString(
-        "utf8",
-      ),
+      Buffer.from(
+        cursor,
+        "base64url",
+      ).toString("utf8"),
     );
 
     if (
       typeof decoded !== "object" ||
       decoded === null ||
-      typeof decoded.timestamp !== "string" ||
-      typeof decoded.id !== "string"
+      typeof decoded.timestamp !==
+        "string" ||
+      typeof decoded.id !==
+        "string"
     ) {
       throw new Error();
     }
 
-    const timestamp = new Date(
-      decoded.timestamp,
-    );
+    const timestamp =
+      new Date(decoded.timestamp);
 
-    if (Number.isNaN(timestamp.getTime())) {
+    if (
+      Number.isNaN(
+        timestamp.getTime(),
+      )
+    ) {
       throw new Error();
     }
 
@@ -289,7 +316,9 @@ function decodeCursor(
       id: decoded.id,
     };
   } catch {
-    throw new Error("Invalid cursor");
+    throw new Error(
+      "Invalid cursor",
+    );
   }
 }
 
@@ -301,7 +330,9 @@ function encodeCursor(
   ).toString("base64url");
 }
 
-function escapeLike(value: string): string {
+function escapeLike(
+  value: string,
+): string {
   return value.replace(
     /[\\%_]/g,
     "\\$&",

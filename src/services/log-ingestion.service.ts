@@ -1,8 +1,6 @@
 import { sql } from "drizzle-orm";
 
 import { db } from "../db/client.js";
-import { logs } from "../db/schema.js";
-
 import type { CreateLogInput } from "../validation/log.js";
 import type { LogLevel } from "../types/logs.js";
 
@@ -33,17 +31,15 @@ export async function ingestLogs(
   const validLogs: ValidLog[] = [];
 
   const now = Date.now();
-  const FIVE_MINUTES = 5 * 60 * 1000;
-  const maxFutureTimestamp = now + FIVE_MINUTES;
+  const maxFutureTimestamp =
+    now + 5 * 60 * 1000;
 
   for (const item of input) {
-    const { index, log } = item;
-
-    const timestamp = new Date(log.timestamp);
+    const timestamp = new Date(item.log.timestamp);
 
     if (timestamp.getTime() > maxFutureTimestamp) {
       rejected.push({
-        index,
+        index: item.index,
         reason:
           "timestamp cannot be more than 5 minutes in the future",
       });
@@ -53,10 +49,10 @@ export async function ingestLogs(
 
     validLogs.push({
       timestamp,
-      level: log.level,
-      service: log.service,
-      message: log.message,
-      attributes: log.attributes ?? {},
+      level: item.log.level,
+      service: item.log.service,
+      message: item.log.message,
+      attributes: item.log.attributes ?? {},
     });
   }
 
@@ -68,32 +64,40 @@ export async function ingestLogs(
     };
   }
 
-  const payload = JSON.stringify(validLogs);
+  const payload = JSON.stringify(
+    validLogs.map((log) => ({
+      timestamp: log.timestamp.toISOString(),
+      level: log.level,
+      service: log.service,
+      message: log.message,
+      attributes: log.attributes,
+    })),
+  );
 
   await db.execute(sql`
-    INSERT INTO logs (
-      "timestamp",
-      "level",
-      "service",
-      "message",
-      "attributes"
-    )
-    SELECT
-      x.timestamp,
-      x.level,
-      x.service,
-      x.message,
-      x.attributes
-    FROM jsonb_to_recordset(
-      ${payload}::jsonb
-    ) AS x(
-      timestamp timestamptz,
-      level text,
-      service text,
-      message text,
-      attributes jsonb
-    )
-  `);
+  INSERT INTO logs (
+    "timestamp",
+    "level",
+    "service",
+    "message",
+    "attributes"
+  )
+  SELECT
+    x.timestamp,
+    x.level::log_level,
+    x.service,
+    x.message,
+    x.attributes
+  FROM jsonb_to_recordset(
+    ${JSON.stringify(validLogs)}::jsonb
+  ) AS x(
+    timestamp timestamptz,
+    level text,
+    service text,
+    message text,
+    attributes jsonb
+  )
+`);
 
   return {
     total: input.length,
