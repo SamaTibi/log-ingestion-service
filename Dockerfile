@@ -1,20 +1,30 @@
-FROM node:22-alpine
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-COPY package*.json ./
-
+COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY tsconfig.json ./
-COPY drizzle.config.ts ./
-COPY src ./src
-COPY docker-entrypoint.sh ./
+COPY src/ ./src/
 
 RUN npm run build
 
-RUN chmod +x docker-entrypoint.sh
+
+FROM node:22-alpine AS production
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
+COPY --from=builder /app/dist ./dist
+
+USER node
 
 EXPOSE 8080
 
-ENTRYPOINT ["./docker-entrypoint.sh"]
+ENTRYPOINT ["node"]
+CMD ["dist/server.js"]

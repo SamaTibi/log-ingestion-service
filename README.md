@@ -1,45 +1,193 @@
-Here's the updated README with the Docker commands and database section added:
+# Structured Log Service
 
----
+A backend service for collecting, storing, searching, and aggregating application logs.
 
-# Log Ingestion Service
+## Stack
 
-A simple backend service for **storing, querying, and filtering application logs**.
+* TypeScript
+* Fastify
+* PostgreSQL
+* pg
+* Zod
+* Docker
 
-Built with **TypeScript, Fastify, PostgreSQL, Drizzle ORM, Docker, Docker Compose, and Vitest**.
+## Features
 
----
+* Batch log ingestion
+* Log validation
+* Cursor pagination
+* Full-text search
+* Attribute filtering
+* Time aggregation: `1m`, `5m`, `1h`, `1d`
+* Daily partitions
+* Log retention cleanup
+* Health checks
 
-## 🚀 Features
+## API
 
-- 📥 Ingest logs using `POST /logs`
-- 🔎 Query logs using `GET /logs`
-- 🎯 Filter logs by service, level, time range, message, and attributes
-- 📄 Cursor-based pagination
-- 📦 Batch log ingestion
-- ✅ Validation for invalid log data
-- 🗑️ Configurable log retention
-- 🩺 Health check endpoint
-- 🧪 Automated tests with Vitest
-- 🐳 Docker and Docker Compose support
+| Method | Endpoint          | Description            |
+| ------ | ----------------- | ---------------------- |
+| GET    | `/health`         | Health check           |
+| POST   | `/logs`           | Insert logs            |
+| GET    | `/logs`           | Search and filter logs |
+| GET    | `/logs/aggregate` | Aggregate logs         |
 
----
+## Log Format
 
-## 🛠️ Tech Stack
+```json
+{
+  "timestamp": "2026-08-14T12:00:00Z",
+  "level": "info",
+  "service": "api",
+  "message": "request completed",
+  "attributes": {
+    "status": 200
+  }
+}
+```
 
-| Technology | Purpose |
-|---|---|
-| TypeScript | Application development |
-| Fastify | HTTP server and API |
-| PostgreSQL | Database |
-| Drizzle ORM | Database access and schema management |
-| Vitest | Automated testing |
-| Docker | Application containerization |
-| Docker Compose | Application and database orchestration |
+## Quick Start
 
----
+```bash
+npm install
+docker compose up -d --build
+```
 
-## 📁 Project Structure
+The API runs on:
+
+```text
+http://localhost:8080
+```
+
+## Docker
+
+```bash
+docker compose up -d --build
+docker compose ps
+docker compose logs -f
+docker compose down
+```
+
+## API Examples
+
+### Insert logs
+
+```http
+POST /logs
+```
+
+```json
+{
+  "logs": [
+    {
+      "timestamp": "2026-08-14T12:00:00Z",
+      "level": "info",
+      "service": "api",
+      "message": "request completed",
+      "attributes": {
+        "status": 200
+      }
+    }
+  ]
+}
+```
+
+### Query logs
+
+```http
+GET /logs?service=api&level=error&limit=50
+```
+
+Supported filters:
+
+```text
+service
+level
+since
+until
+q
+attr.*
+limit
+cursor
+```
+
+### Aggregate logs
+
+```http
+GET /logs/aggregate?bucket=5m&group_by=service
+```
+
+Buckets:
+
+```text
+1m
+5m
+1h
+1d
+```
+
+### Health
+
+```http
+GET /health
+```
+
+## Environment Variables
+
+| Variable         | Description           | Default  |
+| ---------------- | --------------------- | -------- |
+| `DATABASE_URL`   | PostgreSQL connection | Required |
+| `PORT`           | Server port           | `8080`   |
+| `RETENTION_DAYS` | Log retention period  | `30`     |
+
+## Database
+
+Connect to PostgreSQL:
+
+```bash
+docker compose exec postgres psql -U postgres -d logs
+```
+
+Useful commands:
+
+```sql
+\dt
+
+SELECT COUNT(*) FROM logs;
+
+SELECT * FROM logs LIMIT 10;
+
+\q
+```
+
+## Architecture
+
+```text
+Client
+  ↓
+Fastify
+  ↓
+Zod Validation
+  ↓
+PostgreSQL
+  ├── JSONB attributes
+  ├── Daily partitions
+  └── Indexes
+```
+
+* **Fastify** handles HTTP requests.
+* **Zod** validates incoming logs.
+* **pg** communicates directly with PostgreSQL.
+* **PostgreSQL** handles storage, search, aggregation, and partitions.
+* **Docker** runs the application and database.
+
+## Testing
+
+```bash
+npm test
+```
+
+## Project Structure
 
 ```text
 log-ingestion-service/
@@ -51,225 +199,14 @@ log-ingestion-service/
 │   ├── validation/
 │   └── server.ts
 ├── tests/
-│   ├── database.test.ts
-│   ├── health.test.ts
-│   └── logs.test.ts
-├── docker-compose.yml
 ├── Dockerfile
-├── .env.example
-├── drizzle.config.ts
+├── docker-compose.yml
 ├── package.json
-└── tsconfig.json
+└── README.md
 ```
 
----
-
-## 🐳 Running with Docker Compose
-
-1. Clone the repository
-
-```bash
-git clone https://github.com/SamaTibi/log-ingestion-service.git
-cd log-ingestion-service
-```
-
-2. Create the environment file
-
-```bash
-cp .env.example .env
-```
-
-Configure the `.env` file:
-
-```env
-DATABASE_URL=postgresql://postgres:postgres@postgres:5432/logs
-PORT=8080
-RETENTION_DAYS=30
-AUTH_ENABLED=false
-```
-
-3. Build and start the services
-
-```bash
-docker compose up --build
-```
-
-The API will be available at: `http://localhost:8080`
-
-4. Run in detached mode
-
-```bash
-docker compose up -d --build
-```
-
----
-
-## 🐳 Docker Commands
-
-### Build
-```bash
-docker compose build                 # Build the application image
-docker compose build --no-cache app  # Build without cache
-```
-
-### Start
-```bash
-docker compose up -d                 # Start services in background
-docker compose up -d --build         # Rebuild and start
-```
-
-### Monitor
-```bash
-docker compose ps                    # Check running containers
-docker compose logs app              # View application logs
-docker compose logs -f app           # Follow application logs
-```
-
-### Stop
-```bash
-docker compose down                  # Stop services
-docker compose down -v               # Stop services and remove database data
-```
-
----
-
-## 🗄️ Database
-
-PostgreSQL is automatically started by Docker Compose.
-
-To connect to the PostgreSQL database:
-
-```bash
-docker compose exec postgres psql -U postgres -d logs
-```
-
-Example queries:
-
-```sql
--- Count total logs
-SELECT count(*) FROM logs;
-
--- View recent logs
-SELECT * FROM logs ORDER BY timestamp DESC LIMIT 5;
-
--- Filter by service
-SELECT * FROM logs WHERE service = 'checkout';
-
--- Count logs by level
-SELECT level, count(*) FROM logs GROUP BY level;
-```
-
----
-
-## 🩺 Health Check
-
-```bash
-curl http://localhost:8080/health
-```
-
-Response:
-```json
-{
-  "status": "ok"
-}
-```
-
----
-
-## 📡 API
-
-### Add Logs
-**POST** `/logs`
-
-```json
-{
-  "logs": [
-    {
-      "timestamp": "2026-08-14T13:00:00Z",
-      "level": "info",
-      "service": "checkout",
-      "message": "Order created",
-      "attributes": { "user_id": 42 }
-    }
-  ]
-}
-```
-
-### Get Logs
-**GET** `/logs`
-
-```bash
-GET /logs?service=checkout
-GET /logs?level=error
-GET /logs?q=declined
-GET /logs?since=2026-08-14T13:00:00Z
-GET /logs?until=2026-08-14T15:00:00Z
-GET /logs?limit=10
-GET /logs?service=checkout&level=error
-```
-
-### Supported Filters
-
-| Parameter | Description |
-|-----------|-------------|
-| `service` | Filter by service name |
-| `level` | Filter by log level |
-| `since` | Logs after timestamp |
-| `until` | Logs before timestamp |
-| `q` | Search in message |
-| `attr.*` | Filter by attributes |
-| `limit` | Number of results (max 100) |
-| `cursor` | Pagination cursor |
-
----
-
-## 🧪 Testing
-
-```bash
-npm test
-```
-
-Results:
-```
-Test Files  3 passed (3)
-Tests       38 passed (38)
-```
-
----
-
-## 🔧 Local Development (Without Docker)
-
-1. Install dependencies
-```bash
-npm install
-```
-
-2. Configure `.env`
-```env
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/logs
-PORT=8080
-RETENTION_DAYS=30
-AUTH_ENABLED=false
-```
-
-3. Start the development server
-```bash
-npm run dev
-```
-
----
-
-## ⚙️ Configuration
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | Required |
-| `PORT` | Server port | `8080` |
-| `RETENTION_DAYS` | Log retention period | `30` |
-| `AUTH_ENABLED` | Enable authentication | `false` |
-
----
-
-## 👩‍💻 Author
+## Author
 
 **Sama Tibi**
+
+Boot.dev TypeScript Final Project — 2026

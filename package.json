@@ -1,31 +1,29 @@
 {
   "name": "log-ingestion-service",
   "version": "1.0.0",
-  "description": "A high-throughput log ingestion and querying service",
+  "description": "Log ingestion service with Fastify and PostgreSQL",
+  "main": "dist/server.js",
   "type": "module",
   "scripts": {
+    "test": "tsx --test tests/*.test.ts",
     "dev": "tsx watch src/server.ts",
-    "start": "node dist/server.js",
     "build": "tsc",
-    "test": "vitest",
-    "test:run": "vitest run",
-    "typecheck": "tsc --noEmit",
-    "load:test": "tsx scripts/load-test.ts",
-    "migrate": "drizzle-kit migrate"
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit"
   },
+  "keywords": ["logs", "ingestion", "fastify", "postgresql"],
+  "author": "",
+  "license": "ISC",
   "dependencies": {
     "dotenv": "^17.4.2",
-    "drizzle-orm": "^0.44.0",
-    "fastify": "^5.0.0",
-    "postgres": "^3.0.0",
+    "fastify": "^5.11.3",
+    "pg": "^8.23.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^24.0.0",
-    "drizzle-kit": "^0.31.0",
-    "tsx": "^4.0.0",
-    "typescript": "^5.0.0",
-    "vite": "^8.2.1",
-    "vitest": "^4.1.10"
+    "@types/node": "^26.2.0",
+    "@types/pg": "^8.21.0",
+    "tsx": "^4.23.12",
+    "typescript": "^7.0.2"
   }
 }
